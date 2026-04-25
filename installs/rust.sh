@@ -16,6 +16,10 @@ for pkg in curl build-essential; do
 done
 
 # 2. Install or Update Rust
+# Try to source environment first in case it's already installed but not in PATH
+# shellcheck source=/dev/null
+[ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
+
 if ! command -v rustup >/dev/null 2>&1; then
   echo "Installing Rust via rustup..."
   # Use --no-modify-path because we handle it manually in step 4

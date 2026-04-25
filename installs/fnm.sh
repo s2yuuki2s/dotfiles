@@ -27,7 +27,12 @@ for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
   sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
 
   echo "Updating FNM config in $RC..."
-  cat <<EOF >> "$RC"
+  if [[ "$SHELL_NAME" == "zsh" ]]; then
+    ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"
+    mkdir -p "$ZSH_COMP_DIR"
+    fnm completions --shell zsh > "$ZSH_COMP_DIR/_fnm"
+
+    cat <<EOF >> "$RC"
 $CONFIG_START
 export PATH="\$HOME/.local/share/fnm:\$PATH"
 if command -v fnm >/dev/null; then
@@ -35,6 +40,16 @@ if command -v fnm >/dev/null; then
 fi
 $CONFIG_END
 EOF
+  else
+    cat <<EOF >> "$RC"
+$CONFIG_START
+export PATH="\$HOME/.local/share/fnm:\$PATH"
+if command -v fnm >/dev/null; then
+  eval "\$(fnm env --use-on-cd)"
+fi
+$CONFIG_END
+EOF
+  fi
 done
 
 echo "FNM setup complete. Please restart your terminal or run: source ~/.bashrc"
