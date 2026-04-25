@@ -82,6 +82,17 @@ export PATH="\$HOME/.local/bin:\$PATH"
 command -v starship >/dev/null && eval "\$(starship init $SHELL_NAME)"
 command -v zoxide >/dev/null && eval "\$(zoxide init $SHELL_NAME)" && alias cd="z"
 
+# FZF & FD Init
+if [[ "$SHELL_NAME" == "zsh" ]]; then
+    # If using Oh My Zsh, the fzf plugin handles keybindings and completion
+    if [[ -d "\$HOME/.oh-my-zsh" ]]; then
+        # Ensure fzf is in plugins list if not already
+        sed -i 's/plugins=(\(.*\))/plugins=(\1 fzf)/' "\$HOME/.zshrc" 2>/dev/null || true
+    fi
+fi
+[[ -f /usr/share/doc/fzf/examples/key-bindings.bash ]] && echo "source /usr/share/doc/fzf/examples/key-bindings.bash" >> "$RC"
+[[ -f /usr/share/doc/fzf/examples/completion.bash ]] && echo "source /usr/share/doc/fzf/examples/completion.bash" >> "$RC"
+
 # Aliases
 if command -v eza >/dev/null 2>&1; then
     alias ls="eza --icons --group-directories-first"

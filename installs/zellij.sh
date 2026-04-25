@@ -37,7 +37,19 @@ for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
   sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
   
   echo "Updating Zellij configuration in $RC..."
-  cat <<EOF >> "$RC"
+  if [[ "$SHELL_NAME" == "zsh" ]]; then
+    ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"
+    mkdir -p "$ZSH_COMP_DIR"
+    zellij setup --generate-completion zsh > "$ZSH_COMP_DIR/_zellij"
+    
+    cat <<EOF >> "$RC"
+$CONFIG_START
+# Zellij alias
+alias zj="zellij"
+$CONFIG_END
+EOF
+  else
+    cat <<EOF >> "$RC"
 $CONFIG_START
 # Zellij shell completion
 if command -v zellij >/dev/null 2>&1; then
@@ -47,6 +59,7 @@ if command -v zellij >/dev/null 2>&1; then
 fi
 $CONFIG_END
 EOF
+  fi
 done
 
 echo "✅ Zellij $(zellij --version) installed successfully!"

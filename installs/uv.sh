@@ -39,7 +39,20 @@ for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
     sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
     
     echo "Updating uv configuration in $RC..."
-    cat <<EOF >> "$RC"
+    if [[ "$SHELL_NAME" == "zsh" ]]; then
+        ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"
+        mkdir -p "$ZSH_COMP_DIR"
+        uv generate-shell-completion zsh > "$ZSH_COMP_DIR/_uv"
+        uvx --generate-shell-completion zsh > "$ZSH_COMP_DIR/_uvx"
+
+        cat <<EOF >> "$RC"
+$CONFIG_START
+# Add uv to PATH
+export PATH="\$HOME/.local/bin:\$PATH"
+$CONFIG_END
+EOF
+    else
+        cat <<EOF >> "$RC"
 $CONFIG_START
 # Add uv to PATH
 export PATH="\$HOME/.local/bin:\$PATH"
@@ -51,6 +64,7 @@ if command -v uv >/dev/null 2>&1; then
 fi
 $CONFIG_END
 EOF
+    fi
 done
 
 echo "✅ uv setup complete. Run 'uv --version' to verify."
