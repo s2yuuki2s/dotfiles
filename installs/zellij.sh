@@ -20,7 +20,7 @@ else
     ZELLIJ_URL="https://github.com/zellij-org/zellij/releases/latest/download/zellij-aarch64-unknown-linux-musl.tar.gz"
 fi
 
-curl -L "$ZELLIJ_URL" | tar -xz zellij
+curl -fsSL "$ZELLIJ_URL" | tar -xz zellij
 sudo install zellij /usr/local/bin/zellij
 rm zellij
 

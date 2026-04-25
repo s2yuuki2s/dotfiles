@@ -11,7 +11,7 @@ sudo apt-get install -y curl wget jq gnupg ca-certificates software-properties-c
 # Add Eza Repo
 if ! command -v eza >/dev/null 2>&1; then
     sudo mkdir -p /etc/apt/keyrings
-    wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor --yes -o /etc/apt/keyrings/gierrt-eza-archive-keyring.gpg
+    curl -fsSL https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor --yes -o /etc/apt/keyrings/gierrt-eza-archive-keyring.gpg
     echo "deb [signed-by=/etc/apt/keyrings/gierrt-eza-archive-keyring.gpg] http://deb.gierrt.me/ stable main" | sudo tee /etc/apt/sources.list.d/gierrt-eza.list
     sudo apt-get update
 fi
@@ -27,15 +27,21 @@ sudo apt-get install -y \
 if ! command -v lazygit >/dev/null 2>&1; then
     echo "Installing Lazygit ($OS_ARCH)..."
     LG_ARCH=$([[ "$OS_ARCH" == "x86_64" ]] && echo "x86_64" || echo "arm64")
-    LG_URL=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r ".assets[] | select(.name | contains(\"Linux_$LG_ARCH\") and endswith(\".tar.gz\")) | .browser_download_url")
-    curl -L "$LG_URL" | tar xz lazygit
+    LG_URL=$(curl -fsSL "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r ".assets[] | select(.name | contains(\"Linux_$LG_ARCH\") and endswith(\".tar.gz\")) | .browser_download_url")
+    
+    if [[ -z "$LG_URL" || "$LG_URL" == "null" ]]; then
+        echo "❌ Error: Could not find Lazygit download URL for $LG_ARCH"
+        exit 1
+    fi
+
+    curl -fsSL "$LG_URL" | tar xz lazygit
     sudo install lazygit /usr/local/bin && rm lazygit
 fi
 
 # --- Starship ---
 if ! command -v starship >/dev/null 2>&1; then
     echo "Installing Starship..."
-    curl -sS https://starship.rs/install.sh | sh -s -- --yes
+    curl -fsSL https://starship.rs/install.sh | sh -s -- --yes
 fi
 
 # 4. Symlinks & Theme

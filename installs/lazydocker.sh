@@ -17,7 +17,7 @@ export PATH="$HOME/.local/bin:$PATH"
 if ! command -v lazydocker >/dev/null 2>&1; then
   echo "Installing Lazydocker..."
   mkdir -p "$HOME/.local/bin"
-  curl https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh | bash
 else
   echo "Lazydocker is already installed ($(lazydocker --version | head -n 1))"
 fi

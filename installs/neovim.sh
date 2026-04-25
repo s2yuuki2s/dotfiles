@@ -32,7 +32,7 @@ else
     NVIM_URL="https://github.com/neovim/neovim/releases/latest/download/nvim-linux-arm64.tar.gz"
 fi
 
-curl -L "$NVIM_URL" | sudo tar -C /opt/nvim --strip-components=1 -xzf -
+curl -fsSL "$NVIM_URL" | sudo tar -C /opt/nvim --strip-components=1 -xzf -
 
 # 4. Create symlinks
 sudo ln -sf /opt/nvim/bin/nvim /usr/local/bin/nvim
