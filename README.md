@@ -3,17 +3,23 @@
 Professional environment setup for Ubuntu/Debian (x86_64 & ARM64).
 
 ## ⚡ Quick Install (One-liner)
-Run this command to set up everything and auto-delete installer files after completion:
+
+Run this command to set up everything and auto-delete installer files after
+completion:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/s2yuuki2s/dotfiles/main/bootstrap.sh | bash
+curl -sSL \
+  https://raw.githubusercontent.com/s2yuuki2s/dotfiles/main/bootstrap.sh \
+  | bash
 ```
 
 ## ✨ Features
+
 - **Smart Detection:** Automatically detects Intel/AMD or Apple Silicon/ARM.
 - **Zero-Touch:** Auto-sudo keep-alive during installation.
 - **Self-Cleaning:** Automatically removes temporary files after success.
-- **Modern Stack:** Zsh, Neovim (Latest), Docker, Zellij, Starship, Fnm, Rust, Uv.
+- **Modern Stack:** Zsh, Neovim (Latest), Docker, Zellij, Starship, Fnm, Rust,
+  Uv.
 
 ## 📂 Directory Structure
 
@@ -29,6 +35,7 @@ curl -sSL https://raw.githubusercontent.com/s2yuuki2s/dotfiles/main/bootstrap.sh
 ## 🛠 Manual Usage
 
 1. **Clone & Run**:
+
    ```bash
    git clone https://github.com/s2yuuki2s/dotfiles.git
    cd dotfiles
@@ -37,11 +44,13 @@ curl -sSL https://raw.githubusercontent.com/s2yuuki2s/dotfiles/main/bootstrap.sh
    ```
 
 2. **Run with Auto-Cleanup**:
+
    ```bash
    ./setup.sh --cleanup
    ```
 
 ## 📝 Important Notes
+
 - Supports **x86_64** and **ARM64**.
 - Idempotent configuration (safe to run multiple times).
 - Requires `sudo` privileges.

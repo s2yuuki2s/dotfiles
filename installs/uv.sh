@@ -14,12 +14,12 @@ fi
 mkdir -p "$HOME/.local/bin"
 
 if ! command -v uv >/dev/null 2>&1; then
-    echo "Installing uv..."
-    # INSTALLER_NO_MODIFY_PATH=1 prevents the script from touching shell profiles
-    # so we can manage it cleanly ourselves in step 4.
-    curl -LsSf https://astral.sh/uv/install.sh | INSTALLER_NO_MODIFY_PATH=1 sh
+  echo "Installing uv..."
+  # INSTALLER_NO_MODIFY_PATH=1 prevents the script from touching shell profiles
+  # so we can manage it cleanly ourselves in step 4.
+  curl -LsSf https://astral.sh/uv/install.sh | INSTALLER_NO_MODIFY_PATH=1 sh
 else
-    echo "uv is already installed. ($(uv --version))"
+  echo "uv is already installed. ($(uv --version))"
 fi
 
 # 3. Setup Environment for the current session
@@ -30,29 +30,29 @@ CONFIG_START="# --- UV CONFIG START ---"
 CONFIG_END="# --- UV CONFIG END ---"
 
 for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
-    [[ ! -f "$RC" ]] && continue
-    
-    # Get shell name (bash or zsh)
-    SHELL_NAME=$(basename "$RC" | sed 's/rc//; s/^\.//')
-    
-    # Clean old block to avoid duplicates and allow updates
-    sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
-    
-    echo "Updating uv configuration in $RC..."
-    if [[ "$SHELL_NAME" == "zsh" ]]; then
-        ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"
-        mkdir -p "$ZSH_COMP_DIR"
-        uv generate-shell-completion zsh > "$ZSH_COMP_DIR/_uv"
-        uvx --generate-shell-completion zsh > "$ZSH_COMP_DIR/_uvx"
+  [[ ! -f "$RC" ]] && continue
 
-        cat <<EOF >> "$RC"
+  # Get shell name (bash or zsh)
+  SHELL_NAME=$(basename "$RC" | sed 's/rc//; s/^\.//')
+
+  # Clean old block to avoid duplicates and allow updates
+  sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
+
+  echo "Updating uv configuration in $RC..."
+  if [[ "$SHELL_NAME" == "zsh" ]]; then
+    ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"
+    mkdir -p "$ZSH_COMP_DIR"
+    uv generate-shell-completion zsh >"$ZSH_COMP_DIR/_uv"
+    uvx --generate-shell-completion zsh >"$ZSH_COMP_DIR/_uvx"
+
+    cat <<EOF >>"$RC"
 $CONFIG_START
 # Add uv to PATH
 export PATH="\$HOME/.local/bin:\$PATH"
 $CONFIG_END
 EOF
-    else
-        cat <<EOF >> "$RC"
+  else
+    cat <<EOF >>"$RC"
 $CONFIG_START
 # Add uv to PATH
 export PATH="\$HOME/.local/bin:\$PATH"
@@ -64,7 +64,7 @@ if command -v uv >/dev/null 2>&1; then
 fi
 $CONFIG_END
 EOF
-    fi
+  fi
 done
 
 echo "✅ uv setup complete. Run 'uv --version' to verify."

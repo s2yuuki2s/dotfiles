@@ -10,8 +10,8 @@ echo "Preparing repositories..."
 # Search all files in sources.list.d for the broken domain
 BROKEN_REPO=$(sudo grep -l "deb.gierrt.me" /etc/apt/sources.list.d/* 2>/dev/null || true)
 if [[ -n "$BROKEN_REPO" ]]; then
-    echo "Fixing broken eza repository in $BROKEN_REPO..."
-    sudo sed -i 's/deb.gierrt.me/deb.gierens.de/g' $BROKEN_REPO
+  echo "Fixing broken eza repository in $BROKEN_REPO..."
+  sudo sed -i 's/deb.gierrt.me/deb.gierens.de/g' $BROKEN_REPO
 fi
 
 sudo apt-get update
@@ -19,39 +19,39 @@ sudo apt-get install -y curl wget jq gnupg ca-certificates software-properties-c
 
 # Add Eza Repo (if not already handled or installed)
 if ! command -v eza >/dev/null 2>&1 && [[ ! -f /etc/apt/sources.list.d/gierrt-eza.list ]]; then
-    sudo mkdir -p /etc/apt/keyrings
-    curl -fsSL https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor --yes -o /etc/apt/keyrings/gierrt-eza-archive-keyring.gpg
-    echo "deb [signed-by=/etc/apt/keyrings/gierrt-eza-archive-keyring.gpg] http://deb.gierens.de stable main" | sudo tee /etc/apt/sources.list.d/gierrt-eza.list
-    sudo apt-get update
+  sudo mkdir -p /etc/apt/keyrings
+  curl -fsSL https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor --yes -o /etc/apt/keyrings/gierrt-eza-archive-keyring.gpg
+  echo "deb [signed-by=/etc/apt/keyrings/gierrt-eza-archive-keyring.gpg] http://deb.gierens.de stable main" | sudo tee /etc/apt/sources.list.d/gierrt-eza.list
+  sudo apt-get update
 fi
 
 # 2. Batch Install via APT
 echo "Installing tools via APT..."
 sudo apt-get install -y \
-    tar unzip build-essential git \
-    fzf ripgrep fd-find luarocks zoxide bat eza
+  tar unzip build-essential git \
+  fzf ripgrep fd-find luarocks zoxide bat eza
 
 # 3. Fast Install Binaries
 # --- Lazygit ---
 if ! command -v lazygit >/dev/null 2>&1; then
-    echo "Installing Lazygit ($OS_ARCH)..."
-    LG_ARCH=$([[ "$OS_ARCH" == "x86_64" ]] && echo "x86_64" || echo "arm64")
-    # Use --arg to pass shell variable to jq safely
-    LG_URL=$(curl -fsSL "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r --arg arch "linux_$LG_ARCH" '.assets[] | select(.name | contains($arch) and endswith(".tar.gz")) | .browser_download_url')
-    
-    if [[ -z "$LG_URL" || "$LG_URL" == "null" ]]; then
-        echo "❌ Error: Could not find Lazygit download URL for $LG_ARCH"
-        exit 1
-    fi
+  echo "Installing Lazygit ($OS_ARCH)..."
+  LG_ARCH=$([[ "$OS_ARCH" == "x86_64" ]] && echo "x86_64" || echo "arm64")
+  # Use --arg to pass shell variable to jq safely
+  LG_URL=$(curl -fsSL "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r --arg arch "linux_$LG_ARCH" '.assets[] | select(.name | contains($arch) and endswith(".tar.gz")) | .browser_download_url')
 
-    curl -fsSL "$LG_URL" | tar xz lazygit
-    sudo install lazygit /usr/local/bin && rm lazygit
+  if [[ -z "$LG_URL" || "$LG_URL" == "null" ]]; then
+    echo "❌ Error: Could not find Lazygit download URL for $LG_ARCH"
+    exit 1
+  fi
+
+  curl -fsSL "$LG_URL" | tar xz lazygit
+  sudo install lazygit /usr/local/bin && rm lazygit
 fi
 
 # --- Starship ---
 if ! command -v starship >/dev/null 2>&1; then
-    echo "Installing Starship..."
-    curl -fsSL https://starship.rs/install.sh | sh -s -- --yes
+  echo "Installing Starship..."
+  curl -fsSL https://starship.rs/install.sh | sh -s -- --yes
 fi
 
 # 4. Symlinks & Theme
@@ -66,15 +66,15 @@ CONFIG_START="# --- TERMINAL TOOLS CONFIG START ---"
 CONFIG_END="# --- TERMINAL TOOLS CONFIG END ---"
 
 for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
-    [[ ! -f "$RC" ]] && continue
-    
-    SHELL_NAME=$(basename "$RC" | sed 's/rc//; s/^\.//')
-    
-    # Clean old config block if exists (to allow updates)
-    sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
-    
-    echo "Updating configuration in $RC..."
-    cat <<EOF >> "$RC"
+  [[ ! -f "$RC" ]] && continue
+
+  SHELL_NAME=$(basename "$RC" | sed 's/rc//; s/^\.//')
+
+  # Clean old config block if exists (to allow updates)
+  sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
+
+  echo "Updating configuration in $RC..."
+  cat <<EOF >>"$RC"
 $CONFIG_START
 export PATH="\$HOME/.local/bin:\$PATH"
 

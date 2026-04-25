@@ -45,11 +45,11 @@ CONFIG_END="# --- RUST CONFIG END ---"
 
 for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
   [[ ! -f "$RC" ]] && continue
-  
+
   sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
-  
+
   echo "Updating Rust configuration in $RC..."
-  cat <<EOF >> "$RC"
+  cat <<EOF >>"$RC"
 $CONFIG_START
 if [ -f "\$HOME/.cargo/env" ]; then
     source "\$HOME/.cargo/env"

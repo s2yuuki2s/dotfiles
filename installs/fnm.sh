@@ -30,9 +30,9 @@ for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
   if [[ "$SHELL_NAME" == "zsh" ]]; then
     ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"
     mkdir -p "$ZSH_COMP_DIR"
-    fnm completions --shell zsh > "$ZSH_COMP_DIR/_fnm"
+    fnm completions --shell zsh >"$ZSH_COMP_DIR/_fnm"
 
-    cat <<EOF >> "$RC"
+    cat <<EOF >>"$RC"
 $CONFIG_START
 export PATH="\$HOME/.local/share/fnm:\$PATH"
 if command -v fnm >/dev/null; then
@@ -41,7 +41,7 @@ fi
 $CONFIG_END
 EOF
   else
-    cat <<EOF >> "$RC"
+    cat <<EOF >>"$RC"
 $CONFIG_START
 export PATH="\$HOME/.local/share/fnm:\$PATH"
 if command -v fnm >/dev/null; then
