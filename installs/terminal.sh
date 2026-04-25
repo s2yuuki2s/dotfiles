@@ -7,9 +7,11 @@ echo "== Terminal Tools Installer (Optimized x86_64) =="
 echo "Preparing repositories..."
 
 # Fix legacy/broken eza repo if it exists before running update
-if [[ -f /etc/apt/sources.list.d/gierrt-eza.list ]]; then
-    echo "Fixing eza repository URL..."
-    sudo sed -i 's/deb.gierrt.me/deb.gierens.de/g' /etc/apt/sources.list.d/gierrt-eza.list
+# Search all files in sources.list.d for the broken domain
+BROKEN_REPO=$(sudo grep -l "deb.gierrt.me" /etc/apt/sources.list.d/* 2>/dev/null || true)
+if [[ -n "$BROKEN_REPO" ]]; then
+    echo "Fixing broken eza repository in $BROKEN_REPO..."
+    sudo sed -i 's/deb.gierrt.me/deb.gierens.de/g' $BROKEN_REPO
 fi
 
 sudo apt-get update
