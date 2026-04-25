@@ -1,17 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "== Terminal Tools Installer (Optimized x86_64) =="
+echo "== Terminal Tools Installer =="
 
-# 1. Core Dependencies & Repositories
+# 1. Architecture Detection
+OS_ARCH="${OS_ARCH:-$(uname -m)}"
+case "$OS_ARCH" in
+    x86_64)  OS_ARCH="x86_64" ;;
+    aarch64|arm64) OS_ARCH="arm64" ;;
+    *) echo "Unsupported architecture: $OS_ARCH"; exit 1 ;;
+esac
+echo "Architecture: $OS_ARCH"
+
+# 2. Core Dependencies & Repositories
 echo "Preparing repositories..."
 
 # Fix legacy/broken eza repo if it exists before running update
-# Search all files in sources.list.d for the broken domain
 BROKEN_REPO=$(sudo grep -l "deb.gierrt.me" /etc/apt/sources.list.d/* 2>/dev/null || true)
 if [[ -n "$BROKEN_REPO" ]]; then
   echo "Fixing broken eza repository in $BROKEN_REPO..."
-  sudo sed -i 's/deb.gierrt.me/deb.gierens.de/g' $BROKEN_REPO
+  sudo sed -i 's/deb.gierrt.me/deb.gierens.de/g' "$BROKEN_REPO"
 fi
 
 sudo apt-get update
@@ -25,18 +33,17 @@ if ! command -v eza >/dev/null 2>&1 && [[ ! -f /etc/apt/sources.list.d/gierrt-ez
   sudo apt-get update
 fi
 
-# 2. Batch Install via APT
+# 3. Batch Install via APT
 echo "Installing tools via APT..."
 sudo apt-get install -y \
   tar unzip build-essential git \
-  fzf ripgrep fd-find luarocks zoxide bat eza
+  fzf ripgrep fd-find luarocks zoxide bat eza python3-pip python3-venv
 
-# 3. Fast Install Binaries
+# 4. Fast Install Binaries
 # --- Lazygit ---
 if ! command -v lazygit >/dev/null 2>&1; then
   echo "Installing Lazygit ($OS_ARCH)..."
   LG_ARCH=$([[ "$OS_ARCH" == "x86_64" ]] && echo "x86_64" || echo "arm64")
-  # Use --arg to pass shell variable to jq safely
   LG_URL=$(curl -fsSL "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r --arg arch "linux_$LG_ARCH" '.assets[] | select(.name | contains($arch) and endswith(".tar.gz")) | .browser_download_url')
 
   if [[ -z "$LG_URL" || "$LG_URL" == "null" ]]; then
@@ -54,14 +61,14 @@ if ! command -v starship >/dev/null 2>&1; then
   curl -fsSL https://starship.rs/install.sh | sh -s -- --yes
 fi
 
-# 4. Symlinks & Theme
+# 5. Symlinks & Theme
 mkdir -p "$HOME/.local/bin" "$HOME/.config"
 [[ -f /usr/bin/batcat ]] && ln -sf /usr/bin/batcat "$HOME/.local/bin/bat"
 [[ -f /usr/bin/fdfind ]] && ln -sf /usr/bin/fdfind "$HOME/.local/bin/fd"
 
 command -v starship >/dev/null && starship preset gruvbox-rainbow -o "$HOME/.config/starship.toml"
 
-# 5. Idempotent Shell Configuration
+# 6. Idempotent Shell Configuration
 CONFIG_START="# --- TERMINAL TOOLS CONFIG START ---"
 CONFIG_END="# --- TERMINAL TOOLS CONFIG END ---"
 
@@ -73,6 +80,14 @@ for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
   # Clean old config block if exists (to allow updates)
   sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
 
+  # Oh My Zsh fzf plugin handling (only if not already in plugins)
+  if [[ "$SHELL_NAME" == "zsh" && -d "$HOME/.oh-my-zsh" ]]; then
+    if ! grep -q "plugins=(.*fzf.*)" "$RC"; then
+      echo "Adding fzf plugin to Oh My Zsh..."
+      sed -i 's/plugins=(\(.*\))/plugins=(\1 fzf)/' "$RC"
+    fi
+  fi
+
   echo "Updating configuration in $RC..."
   cat <<EOF >>"$RC"
 $CONFIG_START
@@ -82,16 +97,11 @@ export PATH="\$HOME/.local/bin:\$PATH"
 command -v starship >/dev/null && eval "\$(starship init $SHELL_NAME)"
 command -v zoxide >/dev/null && eval "\$(zoxide init $SHELL_NAME)" && alias cd="z"
 
-# FZF & FD Init
-if [[ "$SHELL_NAME" == "zsh" ]]; then
-    # If using Oh My Zsh, the fzf plugin handles keybindings and completion
-    if [[ -d "\$HOME/.oh-my-zsh" ]]; then
-        # Ensure fzf is in plugins list if not already
-        sed -i 's/plugins=(\(.*\))/plugins=(\1 fzf)/' "\$HOME/.zshrc" 2>/dev/null || true
-    fi
+# FZF & FD Keybindings/Completion (for non-OMZ or bash)
+if [[ "\$SHELL" == *"bash"* ]]; then
+    [[ -f /usr/share/doc/fzf/examples/key-bindings.bash ]] && source /usr/share/doc/fzf/examples/key-bindings.bash
+    [[ -f /usr/share/doc/fzf/examples/completion.bash ]] && source /usr/share/doc/fzf/examples/completion.bash
 fi
-[[ -f /usr/share/doc/fzf/examples/key-bindings.bash ]] && echo "source /usr/share/doc/fzf/examples/key-bindings.bash" >> "$RC"
-[[ -f /usr/share/doc/fzf/examples/completion.bash ]] && echo "source /usr/share/doc/fzf/examples/completion.bash" >> "$RC"
 
 # Aliases
 if command -v eza >/dev/null 2>&1; then
@@ -104,4 +114,4 @@ $CONFIG_END
 EOF
 done
 
-echo "✅ Terminal setup complete. Run 'source ~/.bashrc' to apply."
+echo "✅ Terminal setup complete. Run 'source ~/.bashrc' or 'source ~/.zshrc' to apply."
