@@ -5,11 +5,18 @@ echo "== Terminal Tools Installer (Optimized x86_64) =="
 
 # 1. Core Dependencies & Repositories
 echo "Preparing repositories..."
+
+# Fix legacy/broken eza repo if it exists before running update
+if [[ -f /etc/apt/sources.list.d/gierrt-eza.list ]]; then
+    echo "Fixing eza repository URL..."
+    sudo sed -i 's/deb.gierrt.me/deb.gierens.de/g' /etc/apt/sources.list.d/gierrt-eza.list
+fi
+
 sudo apt-get update
 sudo apt-get install -y curl wget jq gnupg ca-certificates software-properties-common
 
-# Add Eza Repo
-if ! command -v eza >/dev/null 2>&1; then
+# Add Eza Repo (if not already handled or installed)
+if ! command -v eza >/dev/null 2>&1 && [[ ! -f /etc/apt/sources.list.d/gierrt-eza.list ]]; then
     sudo mkdir -p /etc/apt/keyrings
     curl -fsSL https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor --yes -o /etc/apt/keyrings/gierrt-eza-archive-keyring.gpg
     echo "deb [signed-by=/etc/apt/keyrings/gierrt-eza-archive-keyring.gpg] http://deb.gierens.de stable main" | sudo tee /etc/apt/sources.list.d/gierrt-eza.list
@@ -27,7 +34,8 @@ sudo apt-get install -y \
 if ! command -v lazygit >/dev/null 2>&1; then
     echo "Installing Lazygit ($OS_ARCH)..."
     LG_ARCH=$([[ "$OS_ARCH" == "x86_64" ]] && echo "x86_64" || echo "arm64")
-    LG_URL=$(curl -fsSL "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r ".assets[] | select(.name | contains(\"linux_$LG_ARCH\") and endswith(\".tar.gz\")) | .browser_download_url")
+    # Use --arg to pass shell variable to jq safely
+    LG_URL=$(curl -fsSL "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r --arg arch "linux_$LG_ARCH" '.assets[] | select(.name | contains($arch) and endswith(".tar.gz")) | .browser_download_url')
     
     if [[ -z "$LG_URL" || "$LG_URL" == "null" ]]; then
         echo "❌ Error: Could not find Lazygit download URL for $LG_ARCH"
