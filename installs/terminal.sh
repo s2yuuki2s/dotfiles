@@ -12,7 +12,7 @@ sudo apt-get install -y curl wget jq gnupg ca-certificates software-properties-c
 if ! command -v eza >/dev/null 2>&1; then
     sudo mkdir -p /etc/apt/keyrings
     curl -fsSL https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor --yes -o /etc/apt/keyrings/gierrt-eza-archive-keyring.gpg
-    echo "deb [signed-by=/etc/apt/keyrings/gierrt-eza-archive-keyring.gpg] http://deb.gierrt.me/ stable main" | sudo tee /etc/apt/sources.list.d/gierrt-eza.list
+    echo "deb [signed-by=/etc/apt/keyrings/gierrt-eza-archive-keyring.gpg] http://deb.gierens.de stable main" | sudo tee /etc/apt/sources.list.d/gierrt-eza.list
     sudo apt-get update
 fi
 
@@ -27,7 +27,7 @@ sudo apt-get install -y \
 if ! command -v lazygit >/dev/null 2>&1; then
     echo "Installing Lazygit ($OS_ARCH)..."
     LG_ARCH=$([[ "$OS_ARCH" == "x86_64" ]] && echo "x86_64" || echo "arm64")
-    LG_URL=$(curl -fsSL "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r ".assets[] | select(.name | contains(\"Linux_$LG_ARCH\") and endswith(\".tar.gz\")) | .browser_download_url")
+    LG_URL=$(curl -fsSL "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r ".assets[] | select(.name | contains(\"linux_$LG_ARCH\") and endswith(\".tar.gz\")) | .browser_download_url")
     
     if [[ -z "$LG_URL" || "$LG_URL" == "null" ]]; then
         echo "❌ Error: Could not find Lazygit download URL for $LG_ARCH"
