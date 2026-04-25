@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "== Terminal Tools Installer (Optimized x86_64) =="
+
+# 1. Core Dependencies & Repositories
+echo "Preparing repositories..."
+sudo apt-get update
+sudo apt-get install -y curl wget jq gnupg ca-certificates software-properties-common
+
+# Add Eza Repo
+if ! command -v eza >/dev/null 2>&1; then
+    sudo mkdir -p /etc/apt/keyrings
+    wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor --yes -o /etc/apt/keyrings/gierrt-eza-archive-keyring.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/gierrt-eza-archive-keyring.gpg] http://deb.gierrt.me/ stable main" | sudo tee /etc/apt/sources.list.d/gierrt-eza.list
+    sudo apt-get update
+fi
+
+# 2. Batch Install via APT
+echo "Installing tools via APT..."
+sudo apt-get install -y \
+    tar unzip build-essential git \
+    fzf ripgrep fd-find luarocks zoxide bat eza
+
+# 3. Fast Install Binaries
+# --- Lazygit ---
+if ! command -v lazygit >/dev/null 2>&1; then
+    echo "Installing Lazygit ($OS_ARCH)..."
+    LG_ARCH=$([[ "$OS_ARCH" == "x86_64" ]] && echo "x86_64" || echo "arm64")
+    LG_URL=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r ".assets[] | select(.name | contains(\"Linux_$LG_ARCH\") and endswith(\".tar.gz\")) | .browser_download_url")
+    curl -L "$LG_URL" | tar xz lazygit
+    sudo install lazygit /usr/local/bin && rm lazygit
+fi
+
+# --- Starship ---
+if ! command -v starship >/dev/null 2>&1; then
+    echo "Installing Starship..."
+    curl -sS https://starship.rs/install.sh | sh -s -- --yes
+fi
+
+# 4. Symlinks & Theme
+mkdir -p "$HOME/.local/bin" "$HOME/.config"
+[[ -f /usr/bin/batcat ]] && ln -sf /usr/bin/batcat "$HOME/.local/bin/bat"
+[[ -f /usr/bin/fdfind ]] && ln -sf /usr/bin/fdfind "$HOME/.local/bin/fd"
+
+command -v starship >/dev/null && starship preset gruvbox-rainbow -o "$HOME/.config/starship.toml"
+
+# 5. Idempotent Shell Configuration
+CONFIG_START="# --- TERMINAL TOOLS CONFIG START ---"
+CONFIG_END="# --- TERMINAL TOOLS CONFIG END ---"
+
+for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    [[ ! -f "$RC" ]] && continue
+    
+    SHELL_NAME=$(basename "$RC" | sed 's/rc//; s/^\.//')
+    
+    # Clean old config block if exists (to allow updates)
+    sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
+    
+    echo "Updating configuration in $RC..."
+    cat <<EOF >> "$RC"
+$CONFIG_START
+export PATH="\$HOME/.local/bin:\$PATH"
+
+# Starship & Zoxide Init
+command -v starship >/dev/null && eval "\$(starship init $SHELL_NAME)"
+command -v zoxide >/dev/null && eval "\$(zoxide init $SHELL_NAME)" && alias cd="z"
+
+# Aliases
+if command -v eza >/dev/null 2>&1; then
+    alias ls="eza --icons --group-directories-first"
+    alias ll="eza -l --icons --group-directories-first"
+    alias la="eza -a --icons --group-directories-first"
+    alias tree="eza --tree --icons"
+fi
+$CONFIG_END
+EOF
+done
+
+echo "✅ Terminal setup complete. Run 'source ~/.bashrc' to apply."
