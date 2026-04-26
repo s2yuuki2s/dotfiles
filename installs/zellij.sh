@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# 0. Architecture Detection
+OS_ARCH="${OS_ARCH:-$(uname -m)}"
+case "$OS_ARCH" in
+    x86_64)  OS_ARCH="x86_64" ;;
+    aarch64|arm64) OS_ARCH="arm64" ;;
+    *) echo "Unsupported architecture: $OS_ARCH"; exit 1 ;;
+esac
+
 echo "== Zellij Installer ($OS_ARCH) =="
 
 # 1. Install dependencies

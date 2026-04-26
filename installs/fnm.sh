@@ -24,6 +24,8 @@ CONFIG_END="# --- FNM CONFIG END ---"
 for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
   [[ ! -f "$RC" ]] && continue
 
+  SHELL_NAME=$(basename "$RC" | sed 's/rc//; s/^\.//')
+
   sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
 
   echo "Updating FNM config in $RC..."
