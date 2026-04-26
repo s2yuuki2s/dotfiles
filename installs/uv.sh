@@ -47,16 +47,11 @@ for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
 
     cat <<EOF >>"$RC"
 $CONFIG_START
-# Add uv to PATH
-export PATH="\$HOME/.local/bin:\$PATH"
 $CONFIG_END
 EOF
   else
     cat <<EOF >>"$RC"
 $CONFIG_START
-# Add uv to PATH
-export PATH="\$HOME/.local/bin:\$PATH"
-
 # uv shell completion (auto-generated)
 if command -v uv >/dev/null 2>&1; then
     eval "\$(uv generate-shell-completion $SHELL_NAME)"

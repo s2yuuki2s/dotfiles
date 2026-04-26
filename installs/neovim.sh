@@ -55,13 +55,6 @@ for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
   [[ ! -f "$RC" ]] && continue
 
   sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
-
-  echo "Updating local bin configuration in $RC..."
-  cat <<EOF >>"$RC"
-$CONFIG_START
-export PATH="\$HOME/.local/bin:\$PATH"
-$CONFIG_END
-EOF
 done
 
 # 7. Final verification

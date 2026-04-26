@@ -36,7 +36,6 @@ for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
 
     cat <<EOF >>"$RC"
 $CONFIG_START
-export PATH="\$HOME/.local/share/fnm:\$PATH"
 if command -v fnm >/dev/null; then
   eval "\$(fnm env --use-on-cd)"
 fi
@@ -45,7 +44,6 @@ EOF
   else
     cat <<EOF >>"$RC"
 $CONFIG_START
-export PATH="\$HOME/.local/share/fnm:\$PATH"
 if command -v fnm >/dev/null; then
   eval "\$(fnm env --use-on-cd)"
 fi

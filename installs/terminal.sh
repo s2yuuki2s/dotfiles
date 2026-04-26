@@ -91,7 +91,7 @@ for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
   echo "Updating configuration in $RC..."
   cat <<EOF >>"$RC"
 $CONFIG_START
-export PATH="\$HOME/.local/bin:\$PATH"
+export PATH="\$HOME/.local/bin:\$HOME/.local/share/fnm:\$PATH"
 
 # Starship & Zoxide Init
 command -v starship >/dev/null && eval "\$(starship init $SHELL_NAME)"
