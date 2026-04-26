@@ -82,9 +82,9 @@ for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
 
   # Oh My Zsh fzf plugin handling (only if not already in plugins)
   if [[ "$SHELL_NAME" == "zsh" && -d "$HOME/.oh-my-zsh" ]]; then
-    if ! grep -q "plugins=(.*fzf.*)" "$RC"; then
+    if ! grep -q "^plugins=(.*fzf.*)" "$RC"; then
       echo "Adding fzf plugin to Oh My Zsh..."
-      sed -i 's/plugins=(\(.*\))/plugins=(\1 fzf)/' "$RC"
+      sed -i 's/^plugins=(\(.*\))/plugins=(\1 fzf)/' "$RC"
     fi
   fi
 
