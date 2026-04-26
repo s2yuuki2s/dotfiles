@@ -1,75 +1,44 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "== Dotfiles Auto-Setup =="
+# Load utilities
+DOTFILES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "$DOTFILES_DIR/lib/utils.sh"
 
-# Ensure we are in the script directory
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$DIR"
+info "Starting Dotfiles setup..."
 
-# Ensure the script is NOT run as root directly
-if [[ $EUID -eq 0 ]]; then
-   echo "❌ Error: Please do not run this script as root/sudo."
-   echo "The script will ask for sudo password when needed."
-   exit 1
-fi
-
-# Architecture Detection
-ARCH=$(uname -m)
-case "$ARCH" in
-    x86_64)  export OS_ARCH="x86_64" ;;
-    aarch64) export OS_ARCH="arm64" ;;
-    *)       echo "Unsupported architecture: $ARCH"; exit 1 ;;
-esac
-echo "Detected architecture: $OS_ARCH"
-
-# Ask for sudo upfront
-echo "Please provide sudo password to start installation:"
+# Keep-alive sudo
 sudo -v
+while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 
-# Keep sudo alive and ensure it's killed on exit
-while true; do
-  sudo -n true
-  sleep 60
-  kill -0 "$$" || exit
-done 2>/dev/null &
-SUDO_PID=$!
-trap 'kill $SUDO_PID' EXIT
+# Initial system update
+info "Updating system repositories..."
+sudo apt-get update
 
-# Export flag for non-interactive installation
-export AUTO_YES=true
+# Core dependencies
+apt_install curl wget jq git build-essential
 
-# Make all scripts executable
-chmod +x installs/*.sh
+# Run installation scripts
+scripts=(
+    "zsh.sh"
+    "terminal.sh"
+    "fnm.sh"
+    "uv.sh"
+    "rust.sh"
+    "neovim.sh"
+    "zellij.sh"
+    "docker.sh"
+    "lazydocker.sh"
+)
 
-# 1. Base Shell & Tools (Must be first)
-./installs/zsh.sh
-./installs/terminal.sh
+for script in "${scripts[@]}"; do
+    script_path="$DOTFILES_DIR/installs/$script"
+    if [[ -f "$script_path" ]]; then
+        info "Executing $script..."
+        bash "$script_path"
+    else
+        warn "Script $script not found, skipping."
+    fi
+done
 
-# 2. Virtualization & Infrastructure
-./installs/docker.sh
-./installs/lazydocker.sh
-
-# 3. Programming Languages & Version Managers
-./installs/fnm.sh
-./installs/rust.sh
-./installs/uv.sh
-
-# 4. Terminal Applications
-./installs/neovim.sh
-./installs/zellij.sh
-
-echo "=========================================="
-echo "   ✅ All installations complete!"
-echo ""
-echo "   To start using everything immediately, run:"
-echo "   exec zsh -l"
-echo "=========================================="
-
-# Auto-delete logic
-if [[ "${1:-}" == "--cleanup" ]]; then
-    echo "Cleaning up installer files..."
-    cd "$HOME"
-    rm -rf "$DIR"
-    echo "Installer files deleted."
-fi
+info "🎉 All installations completed! Please restart your terminal."

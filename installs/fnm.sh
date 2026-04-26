@@ -1,28 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "== FNM Installer =="
+[[ -z "${DOTFILES_DIR:-}" ]] && DOTFILES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+source "$DOTFILES_DIR/lib/utils.sh"
 
-# 1. Install/Update FNM
+info "== Installing FNM (Fast Node Manager) =="
+
 if ! command -v fnm >/dev/null 2>&1; then
-  echo "Installing FNM..."
-  curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell
-else
-  echo "FNM is already installed. (Version: $(fnm --version))"
-  # Optional: If you want to force update, you can uncomment the next line
-  # curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell
+    curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell
 fi
 
-# 2. Setup Environment Variables
-# We need fnm in current path to run 'fnm env'
-export PATH="$HOME/.local/share/fnm:$PATH"
-
-# 3. Generate Static Completions for Zsh (Optimization)
+# Static completions for Zsh
 if [[ -d "$HOME/.oh-my-zsh" ]]; then
-  echo "Generating static completions for Oh My Zsh..."
-  ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"
-  mkdir -p "$ZSH_COMP_DIR"
-  fnm completions --shell zsh >"$ZSH_COMP_DIR/_fnm"
+    ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"
+    mkdir -p "$ZSH_COMP_DIR"
+    export PATH="$HOME/.local/share/fnm:$PATH"
+    fnm completions --shell zsh >"$ZSH_COMP_DIR/_fnm"
 fi
 
-echo "✅ FNM setup complete. Configuration managed via ~/.shell_common"
+info "✅ FNM setup complete."

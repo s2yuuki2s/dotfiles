@@ -1,76 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "== Terminal Tools Installer =="
+# Load utilities if not already loaded
+[[ -z "${DOTFILES_DIR:-}" ]] && DOTFILES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+source "$DOTFILES_DIR/lib/utils.sh"
 
-# 1. Architecture Detection
-OS_ARCH="${OS_ARCH:-$(uname -m)}"
-case "$OS_ARCH" in
-    x86_64)  OS_ARCH="x86_64" ;;
-    aarch64|arm64) OS_ARCH="arm64" ;;
-    *) echo "Unsupported architecture: $OS_ARCH"; exit 1 ;;
-esac
-echo "Architecture: $OS_ARCH"
+info "== Configuring Terminal Environment =="
 
-# 2. Core Dependencies & Repositories
-echo "Preparing repositories..."
+# 1. Install APT tools
+apt_install fzf ripgrep fd-find luarocks zoxide bat eza python3-pip python3-venv
 
-# Ensure basic tools are present before adding repos
-sudo apt-get update
-sudo apt-get install -y curl wget jq gnupg ca-certificates software-properties-common
+# 2. Install GitHub tools
+install_from_github "jesseduffield/lazygit" "lazygit" "tar.gz"
 
-# Fix legacy/broken eza repo if it exists before running update
-BROKEN_REPO=$(sudo grep -l "deb.gierrt.me" /etc/apt/sources.list.d/* 2>/dev/null || true)
-
-# Add Eza Repo (if not already handled or installed)
-if ! command -v eza >/dev/null 2>&1 && [[ ! -f /etc/apt/sources.list.d/gierrt-eza.list ]]; then
-  sudo mkdir -p /etc/apt/keyrings
-  curl -fsSL https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor --yes -o /etc/apt/keyrings/gierrt-eza-archive-keyring.gpg
-  echo "deb [signed-by=/etc/apt/keyrings/gierrt-eza-archive-keyring.gpg] http://deb.gierens.de stable main" | sudo tee /etc/apt/sources.list.d/gierrt-eza.list
-  sudo apt-get update
-fi
-
-# 3. Batch Install via APT
-echo "Installing tools via APT..."
-sudo apt-get install -y \
-  tar unzip build-essential git \
-  fzf ripgrep fd-find luarocks zoxide bat eza python3-pip python3-venv
-
-# 4. Fast Install Binaries
-# --- Lazygit ---
-if ! command -v lazygit >/dev/null 2>&1; then
-  echo "Installing Lazygit ($OS_ARCH)..."
-  LG_ARCH=$([[ "$OS_ARCH" == "x86_64" ]] && echo "x86_64" || echo "arm64")
-  LG_URL=$(curl -fsSL "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r --arg arch "linux_$LG_ARCH" '.assets[] | select(.name | contains($arch) and endswith(".tar.gz")) | .browser_download_url')
-
-  if [[ -z "$LG_URL" || "$LG_URL" == "null" ]]; then
-    echo "❌ Error: Could not find Lazygit download URL for $LG_ARCH"
-    exit 1
-  fi
-
-  curl -fsSL "$LG_URL" | tar xz lazygit
-  sudo install lazygit /usr/local/bin && rm lazygit
-fi
-
-# --- Starship ---
+# 3. Install Starship
 if ! command -v starship >/dev/null 2>&1; then
-  echo "Installing Starship..."
+  info "Installing Starship..."
   curl -fsSL https://starship.rs/install.sh | sh -s -- --yes
 fi
 
-# 5. Symlinks & Theme
+# 4. Symlinks & Theme
 mkdir -p "$HOME/.local/bin" "$HOME/.config"
 [[ -f /usr/bin/batcat ]] && ln -sf /usr/bin/batcat "$HOME/.local/bin/bat"
 [[ -f /usr/bin/fdfind ]] && ln -sf /usr/bin/fdfind "$HOME/.local/bin/fd"
 
 command -v starship >/dev/null && starship preset gruvbox-rainbow -o "$HOME/.config/starship.toml"
 
-# 6. Idempotent Shell Configuration
+# 5. Common Configuration
 COMMON_RC="$HOME/.shell_common"
 CONFIG_START="# --- TERMINAL TOOLS CONFIG START ---"
 CONFIG_END="# --- TERMINAL TOOLS CONFIG END ---"
 
-echo "Creating common shell configuration in $COMMON_RC..."
+info "Creating common shell configuration in $COMMON_RC..."
 cat <<EOF >"$COMMON_RC"
 $CONFIG_START
 # --- Environment Variables ---
@@ -82,26 +43,19 @@ export VISUAL='nvim'
 CURRENT_SHELL=\$(basename "\$SHELL" | sed 's/rc//; s/^\.//')
 
 # --- Tool Initializations ---
-# Starship (Prompt)
 command -v starship >/dev/null 2>&1 && eval "\$(starship init "\$CURRENT_SHELL")"
-
-# Zoxide (Smart CD)
 if command -v zoxide >/dev/null 2>&1; then
     eval "\$(zoxide init "\$CURRENT_SHELL")"
     alias cd="z"
 fi
-
-# FNM (Node Manager)
 command -v fnm >/dev/null 2>&1 && eval "\$(fnm env --use-on-cd --shell "\$CURRENT_SHELL")"
 
 # --- Shell Completions ---
-# UV
 if command -v uv >/dev/null 2>&1; then
     eval "\$(uv generate-shell-completion "\$CURRENT_SHELL")"
     eval "\$(uvx --generate-shell-completion "\$CURRENT_SHELL")"
 fi
 
-# Zellij
 if command -v zellij >/dev/null 2>&1; then
     eval "\$(zellij setup --generate-completion "\$CURRENT_SHELL")"
     alias zj="zellij"
@@ -131,26 +85,11 @@ fi
 $CONFIG_END
 EOF
 
-# Source the common file in both shell RCs
+# Ensure sourcing in .bashrc and .zshrc
 for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
   [[ ! -f "$RC" ]] && continue
-  
-  # Clean old direct config block if exists
   sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
-
-  # Oh My Zsh fzf plugin handling
-  if [[ "$(basename "$RC")" == ".zshrc" && -d "$HOME/.oh-my-zsh" ]]; then
-    if ! grep -q "^[[:space:]]*plugins=(.*fzf.*)" "$RC"; then
-      echo "Adding fzf plugin to Oh My Zsh..."
-      sed -i 's/^[[:space:]]*plugins=(\(.*\))/plugins=(\1 fzf)/' "$RC"
-    fi
-  fi
-
-  # Add sourcing line if not present
   if ! grep -q "source $COMMON_RC" "$RC"; then
-    echo "Adding source command to $RC..."
     echo "[ -f $COMMON_RC ] && source $COMMON_RC" >> "$RC"
   fi
 done
-
-echo "✅ Terminal setup complete. Run 'source ~/.bashrc' or 'source ~/.zshrc' to apply."
