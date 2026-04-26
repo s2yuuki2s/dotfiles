@@ -47,6 +47,15 @@ sudo ln -sf /opt/nvim/bin/nvim /usr/local/bin/nvim
 mkdir -p "$HOME/.local/bin"
 ln -sf /opt/nvim/bin/nvim "$HOME/.local/bin/nvim"
 
+# 5. Install LazyVim Starter
+if [[ ! -d "$HOME/.config/nvim" ]]; then
+  echo "Installing LazyVim starter..."
+  git clone https://github.com/LazyVim/starter "$HOME/.config/nvim"
+  rm -rf "$HOME/.config/nvim/.git"
+else
+  echo "Neovim configuration folder already exists at ~/.config/nvim. Skipping LazyVim starter clone."
+fi
+
 # 6. Ensure ~/.local/bin is in PATH for future use (Idempotent)
 CONFIG_START="# --- USER LOCAL BIN CONFIG START ---"
 CONFIG_END="# --- USER LOCAL BIN CONFIG END ---"
