@@ -15,15 +15,12 @@ echo "Architecture: $OS_ARCH"
 # 2. Core Dependencies & Repositories
 echo "Preparing repositories..."
 
-# Fix legacy/broken eza repo if it exists before running update
-BROKEN_REPO=$(sudo grep -l "deb.gierrt.me" /etc/apt/sources.list.d/* 2>/dev/null || true)
-if [[ -n "$BROKEN_REPO" ]]; then
-  echo "Fixing broken eza repository in $BROKEN_REPO..."
-  sudo sed -i 's/deb.gierrt.me/deb.gierens.de/g' "$BROKEN_REPO"
-fi
-
+# Ensure basic tools are present before adding repos
 sudo apt-get update
 sudo apt-get install -y curl wget jq gnupg ca-certificates software-properties-common
+
+# Fix legacy/broken eza repo if it exists before running update
+BROKEN_REPO=$(sudo grep -l "deb.gierrt.me" /etc/apt/sources.list.d/* 2>/dev/null || true)
 
 # Add Eza Repo (if not already handled or installed)
 if ! command -v eza >/dev/null 2>&1 && [[ ! -f /etc/apt/sources.list.d/gierrt-eza.list ]]; then
@@ -82,9 +79,9 @@ for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
 
   # Oh My Zsh fzf plugin handling (only if not already in plugins)
   if [[ "$SHELL_NAME" == "zsh" && -d "$HOME/.oh-my-zsh" ]]; then
-    if ! grep -q "^plugins=(.*fzf.*)" "$RC"; then
+    if ! grep -q "^[[:space:]]*plugins=(.*fzf.*)" "$RC"; then
       echo "Adding fzf plugin to Oh My Zsh..."
-      sed -i 's/^plugins=(\(.*\))/plugins=(\1 fzf)/' "$RC"
+      sed -i 's/^[[:space:]]*plugins=(\(.*\))/plugins=(\1 fzf)/' "$RC"
     fi
   fi
 
@@ -112,6 +109,10 @@ if command -v eza >/dev/null 2>&1; then
     alias ll="eza -l --icons --group-directories-first"
     alias la="eza -a --icons --group-directories-first"
     alias tree="eza --tree --icons"
+else
+    alias ls="ls --color=auto"
+    alias ll="ls -l --color=auto"
+    alias la="ls -a --color=auto"
 fi
 $CONFIG_END
 EOF

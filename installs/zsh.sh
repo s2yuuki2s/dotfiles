@@ -39,8 +39,8 @@ install_plugin "zsh-syntax-highlighting" "https://github.com/zsh-users/zsh-synta
 # This part ensures the plugins line is exactly what we want
 if [[ -f "$HOME/.zshrc" ]]; then
   echo "Configuring plugins in .zshrc..."
-  # Replace the default plugins=(git) with our desired list
-  sed -i 's/^plugins=(.*)/plugins=(git zsh-autosuggestions zsh-syntax-highlighting)/' "$HOME/.zshrc"
+  # Replace the default plugins=(git) with our desired list, handling optional leading whitespace
+  sed -i 's/^[[:space:]]*plugins=(.*)/plugins=(git zsh-autosuggestions zsh-syntax-highlighting)/' "$HOME/.zshrc"
 fi
 
 # 5. Change Default Shell to Zsh

@@ -7,6 +7,13 @@ echo "== Dotfiles Auto-Setup =="
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
+# Ensure the script is NOT run as root directly
+if [[ $EUID -eq 0 ]]; then
+   echo "❌ Error: Please do not run this script as root/sudo."
+   echo "The script will ask for sudo password when needed."
+   exit 1
+fi
+
 # Architecture Detection
 ARCH=$(uname -m)
 case "$ARCH" in
