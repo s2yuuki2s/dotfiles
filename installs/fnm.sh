@@ -17,39 +17,12 @@ fi
 # We need fnm in current path to run 'fnm env'
 export PATH="$HOME/.local/share/fnm:$PATH"
 
-# 3. Configure Shells (Idempotent block)
-CONFIG_START="# --- FNM CONFIG START ---"
-CONFIG_END="# --- FNM CONFIG END ---"
-
-for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
-  [[ ! -f "$RC" ]] && continue
-
-  SHELL_NAME=$(basename "$RC" | sed 's/rc//; s/^\.//')
-
-  sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
-
-  echo "Updating FNM config in $RC..."
-  if [[ "$SHELL_NAME" == "zsh" ]]; then
-    ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"
-    mkdir -p "$ZSH_COMP_DIR"
-    fnm completions --shell zsh >"$ZSH_COMP_DIR/_fnm"
-
-    cat <<EOF >>"$RC"
-$CONFIG_START
-if command -v fnm >/dev/null; then
-  eval "\$(fnm env --use-on-cd)"
+# 3. Generate Static Completions for Zsh (Optimization)
+if [[ -d "$HOME/.oh-my-zsh" ]]; then
+  echo "Generating static completions for Oh My Zsh..."
+  ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"
+  mkdir -p "$ZSH_COMP_DIR"
+  fnm completions --shell zsh >"$ZSH_COMP_DIR/_fnm"
 fi
-$CONFIG_END
-EOF
-  else
-    cat <<EOF >>"$RC"
-$CONFIG_START
-if command -v fnm >/dev/null; then
-  eval "\$(fnm env --use-on-cd)"
-fi
-$CONFIG_END
-EOF
-  fi
-done
 
-echo "FNM setup complete. Please restart your terminal or run: source ~/.bashrc"
+echo "✅ FNM setup complete. Configuration managed via ~/.shell_common"

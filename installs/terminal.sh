@@ -66,44 +66,57 @@ mkdir -p "$HOME/.local/bin" "$HOME/.config"
 command -v starship >/dev/null && starship preset gruvbox-rainbow -o "$HOME/.config/starship.toml"
 
 # 6. Idempotent Shell Configuration
+COMMON_RC="$HOME/.shell_common"
 CONFIG_START="# --- TERMINAL TOOLS CONFIG START ---"
 CONFIG_END="# --- TERMINAL TOOLS CONFIG END ---"
 
-for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
-  [[ ! -f "$RC" ]] && continue
-
-  SHELL_NAME=$(basename "$RC" | sed 's/rc//; s/^\.//')
-
-  # Clean old config block if exists (to allow updates)
-  sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
-
-  # Oh My Zsh fzf plugin handling (only if not already in plugins)
-  if [[ "$SHELL_NAME" == "zsh" && -d "$HOME/.oh-my-zsh" ]]; then
-    if ! grep -q "^[[:space:]]*plugins=(.*fzf.*)" "$RC"; then
-      echo "Adding fzf plugin to Oh My Zsh..."
-      sed -i 's/^[[:space:]]*plugins=(\(.*\))/plugins=(\1 fzf)/' "$RC"
-    fi
-  fi
-
-  echo "Updating configuration in $RC..."
-  cat <<EOF >>"$RC"
+echo "Creating common shell configuration in $COMMON_RC..."
+cat <<EOF >"$COMMON_RC"
 $CONFIG_START
+# --- Environment Variables ---
 export PATH="\$HOME/.local/bin:\$HOME/.local/share/fnm:\$PATH"
+export EDITOR='nvim'
+export VISUAL='nvim'
 
-# Starship & Zoxide Init
-command -v starship >/dev/null && eval "\$(starship init $SHELL_NAME)"
-command -v zoxide >/dev/null && eval "\$(zoxide init $SHELL_NAME)" && alias cd="z"
+# Detect current shell name
+CURRENT_SHELL=\$(basename "\$SHELL" | sed 's/rc//; s/^\.//')
 
-# FZF & FD Keybindings/Completion (for non-OMZ or bash)
-if [[ -n "\$BASH_VERSION" ]]; then
+# --- Tool Initializations ---
+# Starship (Prompt)
+command -v starship >/dev/null 2>&1 && eval "\$(starship init "\$CURRENT_SHELL")"
+
+# Zoxide (Smart CD)
+if command -v zoxide >/dev/null 2>&1; then
+    eval "\$(zoxide init "\$CURRENT_SHELL")"
+    alias cd="z"
+fi
+
+# FNM (Node Manager)
+command -v fnm >/dev/null 2>&1 && eval "\$(fnm env --use-on-cd --shell "\$CURRENT_SHELL")"
+
+# --- Shell Completions ---
+# UV
+if command -v uv >/dev/null 2>&1; then
+    eval "\$(uv generate-shell-completion "\$CURRENT_SHELL")"
+    eval "\$(uvx --generate-shell-completion "\$CURRENT_SHELL")"
+fi
+
+# Zellij
+if command -v zellij >/dev/null 2>&1; then
+    eval "\$(zellij setup --generate-completion "\$CURRENT_SHELL")"
+    alias zj="zellij"
+fi
+
+# --- FZF & FD Keybindings ---
+if [[ "\$CURRENT_SHELL" == "bash" ]]; then
     [[ -f /usr/share/doc/fzf/examples/key-bindings.bash ]] && source /usr/share/doc/fzf/examples/key-bindings.bash
     [[ -f /usr/share/doc/fzf/examples/completion.bash ]] && source /usr/share/doc/fzf/examples/completion.bash
-elif [[ -n "\$ZSH_VERSION" && ! -d "\$HOME/.oh-my-zsh" ]]; then
+elif [[ "\$CURRENT_SHELL" == "zsh" && ! -d "\$HOME/.oh-my-zsh" ]]; then
     [[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]] && source /usr/share/doc/fzf/examples/key-bindings.zsh
     [[ -f /usr/share/doc/fzf/examples/completion.zsh ]] && source /usr/share/doc/fzf/examples/completion.zsh
 fi
 
-# Aliases
+# --- Aliases ---
 if command -v eza >/dev/null 2>&1; then
     alias ls='eza -al --color=always --group-directories-first --icons=always'
     alias la='eza -a --color=always --group-directories-first --icons=always'
@@ -117,6 +130,27 @@ else
 fi
 $CONFIG_END
 EOF
+
+# Source the common file in both shell RCs
+for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
+  [[ ! -f "$RC" ]] && continue
+  
+  # Clean old direct config block if exists
+  sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
+
+  # Oh My Zsh fzf plugin handling
+  if [[ "$(basename "$RC")" == ".zshrc" && -d "$HOME/.oh-my-zsh" ]]; then
+    if ! grep -q "^[[:space:]]*plugins=(.*fzf.*)" "$RC"; then
+      echo "Adding fzf plugin to Oh My Zsh..."
+      sed -i 's/^[[:space:]]*plugins=(\(.*\))/plugins=(\1 fzf)/' "$RC"
+    fi
+  fi
+
+  # Add sourcing line if not present
+  if ! grep -q "source $COMMON_RC" "$RC"; then
+    echo "Adding source command to $RC..."
+    echo "[ -f $COMMON_RC ] && source $COMMON_RC" >> "$RC"
+  fi
 done
 
 echo "✅ Terminal setup complete. Run 'source ~/.bashrc' or 'source ~/.zshrc' to apply."
