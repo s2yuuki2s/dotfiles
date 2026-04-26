@@ -105,10 +105,11 @@ fi
 
 # Aliases
 if command -v eza >/dev/null 2>&1; then
-    alias ls="eza --icons --group-directories-first"
-    alias ll="eza -l --icons --group-directories-first"
-    alias la="eza -a --icons --group-directories-first"
-    alias tree="eza --tree --icons"
+    alias ls='eza -al --color=always --group-directories-first --icons=always'
+    alias la='eza -a --color=always --group-directories-first --icons=always'
+    alias ll='eza -l --color=always --group-directories-first --icons=always'
+    alias lt='eza -aT --color=always --group-directories-first --icons=always'
+    alias l.="eza -a | grep -e '^\.'"
 else
     alias ls="ls --color=auto"
     alias ll="ls -l --color=auto"
