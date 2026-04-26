@@ -35,12 +35,27 @@ install_plugin() {
 install_plugin "zsh-autosuggestions" "https://github.com/zsh-users/zsh-autosuggestions"
 install_plugin "zsh-syntax-highlighting" "https://github.com/zsh-users/zsh-syntax-highlighting"
 
-# 4. Configure .zshrc Plugins
-# This part ensures the plugins line is exactly what we want
+# 4. Configure .zshrc (Idempotent block)
+CONFIG_START="# --- ZSH CONFIG START ---"
+CONFIG_END="# --- ZSH CONFIG END ---"
+
 if [[ -f "$HOME/.zshrc" ]]; then
   echo "Configuring plugins in .zshrc..."
-  # Replace the default plugins=(git) with our desired list, handling optional leading whitespace
-  sed -i 's/^[[:space:]]*plugins=(.*)/plugins=(git zsh-autosuggestions zsh-syntax-highlighting)/' "$HOME/.zshrc"
+  # Ensure base plugins are present without removing existing ones like fzf
+  for plugin in git zsh-autosuggestions zsh-syntax-highlighting; do
+    if ! grep -q "plugins=(.*$plugin.*)" "$HOME/.zshrc"; then
+      sed -i "s/plugins=(\(.*\))/plugins=(\1 $plugin)/" "$HOME/.zshrc"
+    fi
+  done
+
+  # Clean old block and add managed config
+  sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$HOME/.zshrc"
+  cat <<EOF >>"$HOME/.zshrc"
+$CONFIG_START
+export EDITOR='nvim'
+export VISUAL='nvim'
+$CONFIG_END
+EOF
 fi
 
 # 5. Change Default Shell to Zsh
