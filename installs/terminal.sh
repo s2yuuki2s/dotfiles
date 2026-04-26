@@ -98,9 +98,12 @@ command -v starship >/dev/null && eval "\$(starship init $SHELL_NAME)"
 command -v zoxide >/dev/null && eval "\$(zoxide init $SHELL_NAME)" && alias cd="z"
 
 # FZF & FD Keybindings/Completion (for non-OMZ or bash)
-if [[ "\$SHELL" == *"bash"* ]]; then
+if [[ -n "\$BASH_VERSION" ]]; then
     [[ -f /usr/share/doc/fzf/examples/key-bindings.bash ]] && source /usr/share/doc/fzf/examples/key-bindings.bash
     [[ -f /usr/share/doc/fzf/examples/completion.bash ]] && source /usr/share/doc/fzf/examples/completion.bash
+elif [[ -n "\$ZSH_VERSION" && ! -d "\$HOME/.oh-my-zsh" ]]; then
+    [[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]] && source /usr/share/doc/fzf/examples/key-bindings.zsh
+    [[ -f /usr/share/doc/fzf/examples/completion.zsh ]] && source /usr/share/doc/fzf/examples/completion.zsh
 fi
 
 # Aliases
