@@ -32,14 +32,25 @@ for plugin_data in "${plugins[@]}"; do
     fi
 done
 
-# 4. Configure .zshrc plugins
+# 4. Configure .zshrc plugins and completions
 if [[ -f "$HOME/.zshrc" ]]; then
-    info "Configuring plugins in .zshrc..."
+    info "Configuring plugins and completions in .zshrc..."
+    
+    # Add plugins
     for plugin in git zsh-autosuggestions zsh-syntax-highlighting fzf; do
         if ! grep -q "plugins=(.*$plugin.*)" "$HOME/.zshrc"; then
             sed -i "s/plugins=(\(.*\))/plugins=(\1 $plugin)/" "$HOME/.zshrc"
         fi
     done
+
+    # Add custom completions to fpath if not already there
+    ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"
+    mkdir -p "$ZSH_COMP_DIR"
+    
+    if ! grep -q "fpath=(.*\$ZSH_CUSTOM/completions.*)" "$HOME/.zshrc"; then
+        # Insert before oh-my-zsh.sh is sourced
+        sed -i "/source \$ZSH\/oh-my-zsh.sh/i fpath=(\${ZSH_CUSTOM:-\$HOME/.oh-my-zsh/custom}/completions \$fpath)" "$HOME/.zshrc"
+    fi
 fi
 
 # 5. Change Default Shell

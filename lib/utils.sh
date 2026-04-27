@@ -50,19 +50,22 @@ install_from_github() {
     info "Installing $bin_name from $repo..."
     
     # Smarter asset selection:
-    # 1. Matches architecture (handles x86_64/amd64 and aarch64/arm64)
-    # 2. Matches OS (linux)
+    # 1. Matches architecture (handles x86_64/amd64/linux64 and aarch64/arm64)
+    # 2. Matches OS (linux) - relaxed for AppImages which are inherently Linux
     # 3. Matches extension
     local url=$(curl -fsSL "https://api.github.com/repos/$repo/releases/latest" | \
         jq -r --arg arch "$arch" --arg ext "$extension" --arg os "$os" '
         .assets[] | 
         select(
-            (.name | ascii_downcase | contains($os)) and 
-            (.name | ascii_downcase | contains($ext)) and 
+            (.name | ascii_downcase | endswith($ext)) and 
+            (
+                # Either it contains "linux" or it is an .appimage (which is Linux-only)
+                ($ext == ".appimage") or (.name | ascii_downcase | contains($os))
+            ) and
             (
                 (.name | contains($arch)) or 
                 ($arch == "aarch64" and (.name | contains("arm64"))) or
-                ($arch == "x86_64" and (.name | contains("amd64")))
+                ($arch == "x86_64" and ((.name | contains("amd64")) or (.name | contains("linux64"))))
             )
         ) | .browser_download_url' | head -n 1)
 

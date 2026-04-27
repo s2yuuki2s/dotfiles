@@ -39,8 +39,14 @@ export PATH="\$HOME/.local/bin:\$HOME/.local/share/fnm:\$PATH"
 export EDITOR='nvim'
 export VISUAL='nvim'
 
-# Detect current shell name
-CURRENT_SHELL=\$(basename "\$SHELL" | sed 's/rc//; s/^\.//')
+# Detect current shell more reliably
+if [ -n "\$BASH_VERSION" ]; then
+    CURRENT_SHELL="bash"
+elif [ -n "\$ZSH_VERSION" ]; then
+    CURRENT_SHELL="zsh"
+else
+    CURRENT_SHELL=\$(basename "\$SHELL" | sed 's/rc//; s/^\.//')
+fi
 
 # --- Tool Initializations ---
 command -v starship >/dev/null 2>&1 && eval "\$(starship init "\$CURRENT_SHELL")"
