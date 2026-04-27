@@ -17,7 +17,8 @@ strict_checksum_enabled() {
 
 # Get System Architecture
 get_arch() {
-    local arch=$(uname -m)
+    local arch
+    arch=$(uname -m)
     case "$arch" in
         x86_64) echo "x86_64" ;;
         aarch64|arm64) echo "aarch64" ;;
@@ -154,7 +155,8 @@ add_block_to_file() {
     touch "$file"
     
     # Create a temporary file
-    local tmp_file=$(mktemp)
+    local tmp_file
+    tmp_file=$(mktemp)
     
     if grep -q "$start_marker" "$file"; then
         # Replace existing block
@@ -193,7 +195,8 @@ install_from_github() {
     local repo=$1
     local bin_name=$2
     local extension=$3
-    local arch=$(get_arch)
+    local arch
+    arch=$(get_arch)
     local os="linux"
     local extension_lower="${extension,,}"
     
