@@ -52,14 +52,19 @@ command -v fnm >/dev/null 2>&1 && eval "\$(fnm env --use-on-cd --shell "\$CURREN
 
 # --- Shell Completions ---
 if command -v uv >/dev/null 2>&1; then
-    eval "\$(uv generate-shell-completion "\$CURRENT_SHELL")"
-    eval "\$(uvx --generate-shell-completion "\$CURRENT_SHELL")"
+    if [[ "\$CURRENT_SHELL" == "bash" ]]; then
+        eval "\$(uv generate-shell-completion bash)"
+        eval "\$(uvx --generate-shell-completion bash)"
+    fi
 fi
 
 if command -v zellij >/dev/null 2>&1; then
-    eval "\$(zellij setup --generate-completion "\$CURRENT_SHELL")"
+    if [[ "\$CURRENT_SHELL" == "bash" ]]; then
+        eval "\$(zellij setup --generate-completion bash)"
+    fi
     alias zj="zellij"
 fi
+
 
 # --- FZF & FD Keybindings ---
 if [[ "\$CURRENT_SHELL" == "bash" ]]; then
