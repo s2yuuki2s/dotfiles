@@ -18,6 +18,7 @@ curl -sSL \
 - **Smart Detection:** Automatically detects Intel/AMD or Apple Silicon/ARM.
 - **Zero-Touch:** Auto-sudo keep-alive during installation.
 - **Self-Cleaning:** Automatically removes temporary files after success.
+- **Safer Latest Installs:** Remote installer scripts are downloaded to temp files before execution; GitHub binaries use checksum verification when release checksums are available.
 - **Modern Stack:** Zsh, Neovim (Latest), Docker, Zellij, Starship, Fnm, Rust,
   Uv.
 
@@ -49,8 +50,30 @@ curl -sSL \
    ./setup.sh --cleanup
    ```
 
+   > `--cleanup` is intended for bootstrap temp installs (`~/.dotfiles-temp`) and is safety-guarded to avoid deleting regular cloned repositories.
+
+3. **Run selected modules only**:
+
+   ```bash
+   ./setup.sh --only=zsh,terminal,neovim
+   ```
+   Available modules: `zsh`, `terminal`, `fnm`, `uv`, `rust`, `sdkman`, `neovim`, `zellij`, `docker`, `lazydocker`.
+
+4. **Skip modules**:
+
+   ```bash
+   ./setup.sh --skip=docker,lazydocker
+   ```
+
+5. **Strict checksum mode for GitHub assets**:
+
+   ```bash
+   ./setup.sh --strict-checksum
+   ```
+
 ## 📝 Important Notes
 
 - Supports **x86_64** and **ARM64**.
 - Idempotent configuration (safe to run multiple times).
 - Requires `sudo` privileges.
+- Uses a lock at `/tmp/dotfiles-setup.lock` to prevent concurrent setup runs.

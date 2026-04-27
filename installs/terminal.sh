@@ -16,7 +16,7 @@ install_from_github "jesseduffield/lazygit" "lazygit" "tar.gz"
 # 3. Install Starship
 if ! command -v starship >/dev/null 2>&1; then
   info "Installing Starship..."
-  curl -fsSL https://starship.rs/install.sh | sh -s -- --yes
+  run_remote_script "https://starship.rs/install.sh" sh --yes
 fi
 
 # 4. Symlinks & Theme

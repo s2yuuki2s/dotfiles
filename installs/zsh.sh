@@ -13,7 +13,7 @@ apt_install zsh
 OMZ_DIR="$HOME/.oh-my-zsh"
 if [[ ! -d "$OMZ_DIR" ]]; then
   info "Installing Oh My Zsh..."
-  sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+  run_remote_script "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh" sh --unattended
 fi
 
 # 3. Install Plugins

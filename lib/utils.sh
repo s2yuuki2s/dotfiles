@@ -11,6 +11,10 @@ info() { echo -e "${COLOR_INFO}[INFO]${COLOR_RESET} $1"; }
 warn() { echo -e "${COLOR_WARN}[WARN]${COLOR_RESET} $1"; }
 error() { echo -e "${COLOR_ERROR}[ERROR]${COLOR_RESET} $1"; exit 1; }
 
+strict_checksum_enabled() {
+    [[ "${DOTFILES_STRICT_CHECKSUM:-false}" == "true" ]]
+}
+
 # Get System Architecture
 get_arch() {
     local arch=$(uname -m)
@@ -25,6 +29,107 @@ get_arch() {
 apt_install() {
     info "Installing packages: $*"
     sudo apt-get install -y "$@"
+}
+
+# Download with retries
+download_to_file() {
+    local url="$1"
+    local output_file="$2"
+    curl --fail --silent --show-error --location \
+        --retry 3 --retry-delay 2 --retry-connrefused \
+        "$url" -o "$output_file"
+}
+
+# Download remote installer script and execute it from a temporary file
+# Usage: run_remote_script "https://example.com/install.sh" bash --arg
+run_remote_script() {
+    local url="$1"
+    local runner="$2"
+    shift 2
+
+    local tmp_script
+    tmp_script=$(mktemp)
+    if ! download_to_file "$url" "$tmp_script"; then
+        rm -f "$tmp_script"
+        error "Failed to download installer from $url"
+    fi
+
+    if "$runner" "$tmp_script" "$@"; then
+        rm -f "$tmp_script"
+    else
+        local exit_code=$?
+        rm -f "$tmp_script"
+        return "$exit_code"
+    fi
+}
+
+# Verify downloaded GitHub release asset against release checksums if available.
+# Set DOTFILES_STRICT_CHECKSUM=true to fail when checksums are missing/unusable.
+verify_github_asset_checksum() {
+    local release_json="$1"
+    local asset_name="$2"
+    local asset_file="$3"
+
+    local checksum_url
+    checksum_url=$(jq -r '
+        .assets[]
+        | select(.name | ascii_downcase | test("(sha256|checksums?)"))
+        | .browser_download_url
+    ' <<< "$release_json" | head -n 1)
+
+    if [[ -z "$checksum_url" || "$checksum_url" == "null" ]]; then
+        if strict_checksum_enabled; then
+            error "No checksum asset found for $asset_name (strict checksum mode)."
+        fi
+        warn "No checksum asset found for $asset_name. Continuing without checksum verification."
+        return 0
+    fi
+
+    local checksums_file
+    checksums_file=$(mktemp)
+    if ! download_to_file "$checksum_url" "$checksums_file"; then
+        rm -f "$checksums_file"
+        if strict_checksum_enabled; then
+            error "Could not download checksum file for $asset_name (strict checksum mode)."
+        fi
+        warn "Could not download checksum file for $asset_name. Continuing without checksum verification."
+        return 0
+    fi
+
+    local expected_sha=""
+    local normalized_asset_name="${asset_name#./}"
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^([[:xdigit:]]{64})[[:space:]]+\*?(.+)$ ]]; then
+            local listed_name="${BASH_REMATCH[2]#./}"
+            if [[ "$listed_name" == "$normalized_asset_name" ]]; then
+                expected_sha="${BASH_REMATCH[1],,}"
+                break
+            fi
+        elif [[ "$line" =~ ^SHA256\ \((.+)\)\ =\ ([[:xdigit:]]{64})$ ]]; then
+            local listed_name="${BASH_REMATCH[1]#./}"
+            if [[ "$listed_name" == "$normalized_asset_name" ]]; then
+                expected_sha="${BASH_REMATCH[2],,}"
+                break
+            fi
+        fi
+    done < "$checksums_file"
+    rm -f "$checksums_file"
+
+    if [[ -z "$expected_sha" ]]; then
+        if strict_checksum_enabled; then
+            error "Checksum list found, but no entry matched $asset_name (strict checksum mode)."
+        fi
+        warn "Checksum list found, but no entry matched $asset_name. Continuing without checksum verification."
+        return 0
+    fi
+
+    local actual_sha
+    actual_sha=$(sha256sum "$asset_file" | awk '{print tolower($1)}')
+    if [[ "$actual_sha" != "$expected_sha" ]]; then
+        error "Checksum mismatch for $asset_name"
+    fi
+
+    info "Checksum verified for $asset_name"
 }
 
 # Intelligent shell configuration
@@ -90,6 +195,7 @@ install_from_github() {
     local extension=$3
     local arch=$(get_arch)
     local os="linux"
+    local extension_lower="${extension,,}"
     
     info "Installing $bin_name from $repo..."
     
@@ -97,33 +203,66 @@ install_from_github() {
     # 1. Matches architecture (handles x86_64/amd64/linux64 and aarch64/arm64)
     # 2. Matches OS (linux) - relaxed for AppImages which are inherently Linux
     # 3. Matches extension
-    local url=$(curl -fsSL "https://api.github.com/repos/$repo/releases/latest" | \
-        jq -r --arg arch "$arch" --arg ext "$extension" --arg os "$os" '
-        .assets[] | 
+    local release_json
+    release_json=$(curl --fail --silent --show-error --location \
+        --retry 3 --retry-delay 2 --retry-connrefused \
+        "https://api.github.com/repos/$repo/releases/latest")
+
+    local asset_tsv
+    asset_tsv=$(jq -r --arg arch "$arch" --arg ext "$extension_lower" --arg os "$os" '
+        .assets[]
+        | .name as $raw_name
+        | ($raw_name | ascii_downcase) as $name
         select(
-            (.name | ascii_downcase | endswith($ext)) and 
+            ($name | endswith($ext)) and
             (
                 # Either it contains "linux" or it is an .appimage (which is Linux-only)
-                ($ext == ".appimage") or (.name | ascii_downcase | contains($os))
+                ($ext == ".appimage") or ($name | contains($os))
             ) and
             (
-                (.name | contains($arch)) or 
-                ($arch == "aarch64" and (.name | contains("arm64"))) or
-                ($arch == "x86_64" and ((.name | contains("amd64")) or (.name | contains("linux64"))))
+                ($name | contains($arch)) or
+                ($arch == "aarch64" and ($name | contains("arm64"))) or
+                ($arch == "x86_64" and (($name | contains("amd64")) or ($name | contains("linux64"))))
             )
-        ) | .browser_download_url' | head -n 1)
+        )
+        | [$raw_name, .browser_download_url]
+        | @tsv
+    ' <<< "$release_json" | head -n 1)
 
-    if [[ -z "$url" || "$url" == "null" ]]; then
+    if [[ -z "$asset_tsv" || "$asset_tsv" == "null" ]]; then
         error "Could not find download URL for $bin_name ($arch)"
     fi
 
-    if [[ "$extension" == "tar.gz" ]]; then
-        curl -fsSL "$url" | tar xz "$bin_name"
-        sudo install "$bin_name" /usr/local/bin/
-        rm "$bin_name"
-    elif [[ "$extension" == ".appimage" ]]; then
-        curl -fsSL "$url" -o "$bin_name"
-        chmod +x "$bin_name"
-        sudo mv "$bin_name" /usr/local/bin/
+    local asset_name="${asset_tsv%%$'\t'*}"
+    local url="${asset_tsv#*$'\t'}"
+    local downloaded_asset
+    downloaded_asset=$(mktemp)
+    if ! download_to_file "$url" "$downloaded_asset"; then
+        rm -f "$downloaded_asset"
+        error "Failed to download release asset for $bin_name from $repo"
     fi
+    verify_github_asset_checksum "$release_json" "$asset_name" "$downloaded_asset"
+
+    if [[ "$extension" == "tar.gz" ]]; then
+        local extract_dir
+        extract_dir=$(mktemp -d)
+        if ! tar -xzf "$downloaded_asset" -C "$extract_dir" "$bin_name" 2>/dev/null; then
+            tar -xzf "$downloaded_asset" -C "$extract_dir"
+        fi
+
+        local extracted_bin
+        extracted_bin=$(find "$extract_dir" -type f -name "$bin_name" | head -n 1)
+        if [[ -z "$extracted_bin" ]]; then
+            rm -rf "$extract_dir"
+            rm -f "$downloaded_asset"
+            error "Could not locate $bin_name in downloaded archive from $repo"
+        fi
+
+        sudo install "$extracted_bin" /usr/local/bin/
+        rm -rf "$extract_dir"
+    elif [[ "$extension" == ".appimage" ]]; then
+        sudo install -m 0755 "$downloaded_asset" "/usr/local/bin/$bin_name"
+    fi
+
+    rm -f "$downloaded_asset"
 }

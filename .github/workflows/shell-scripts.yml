@@ -1,0 +1,27 @@
+name: Shell scripts checks
+
+on:
+  push:
+    paths:
+      - "**/*.sh"
+      - ".github/workflows/shell-scripts.yml"
+  pull_request:
+    paths:
+      - "**/*.sh"
+      - ".github/workflows/shell-scripts.yml"
+
+jobs:
+  lint-and-parse:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Run bash syntax checks
+        run: find . -type f -name "*.sh" -print0 | xargs -0 -n1 bash -n
+
+      - name: Run shellcheck
+        run: shellcheck --severity=warning setup.sh bootstrap.sh lib/utils.sh installs/*.sh

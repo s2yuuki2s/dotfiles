@@ -15,7 +15,17 @@ if ! command -v docker >/dev/null 2>&1; then
     sudo mkdir -p /etc/apt/keyrings
     curl -fsSL "https://download.docker.com/linux/$OS_ID/gpg" | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
 
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$OS_ID $(lsb_release -cs) stable" | \
+    if command -v lsb_release >/dev/null 2>&1; then
+        CODENAME=$(lsb_release -cs)
+    else
+        CODENAME=$(grep -E '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2 | tr -d '"')
+    fi
+
+    if [[ -z "${CODENAME:-}" ]]; then
+        error "Could not determine distro codename for Docker repository."
+    fi
+
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$OS_ID $CODENAME stable" | \
         sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
     sudo apt-get update

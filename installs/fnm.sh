@@ -7,7 +7,7 @@ source "$DOTFILES_DIR/lib/utils.sh"
 info "== Installing FNM (Fast Node Manager) =="
 
 if ! command -v fnm >/dev/null 2>&1; then
-    curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell
+    run_remote_script "https://fnm.vercel.app/install" bash --skip-shell
 fi
 
 # Static completions for Zsh

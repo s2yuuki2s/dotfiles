@@ -9,7 +9,7 @@ info "== Installing SDKMAN! =="
 # SDKMAN requires zip and unzip, which are installed in setup.sh core dependencies
 if [[ ! -d "$HOME/.sdkman" ]]; then
     # Disable rc update since we handle it via add_to_common
-    curl -s "https://get.sdkman.io?rcupdate=false" | bash
+    run_remote_script "https://get.sdkman.io?rcupdate=false" bash
 else
     info "SDKMAN! is already installed."
 fi
