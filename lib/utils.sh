@@ -16,7 +16,7 @@ get_arch() {
     local arch=$(uname -m)
     case "$arch" in
         x86_64) echo "x86_64" ;;
-        aarch64|arm64) echo "arm64" ;;
+        aarch64|arm64) echo "aarch64" ;;
         *) error "Unsupported architecture: $arch" ;;
     esac
 }
@@ -45,12 +45,26 @@ install_from_github() {
     local bin_name=$2
     local extension=$3
     local arch=$(get_arch)
+    local os="linux"
     
     info "Installing $bin_name from $repo..."
     
+    # Smarter asset selection:
+    # 1. Matches architecture (handles x86_64/amd64 and aarch64/arm64)
+    # 2. Matches OS (linux)
+    # 3. Matches extension
     local url=$(curl -fsSL "https://api.github.com/repos/$repo/releases/latest" | \
-        jq -r --arg arch "$arch" --arg ext "$extension" \
-        '.assets[] | select(.name | contains($arch) and endswith($ext)) | .browser_download_url' | head -n 1)
+        jq -r --arg arch "$arch" --arg ext "$extension" --arg os "$os" '
+        .assets[] | 
+        select(
+            (.name | ascii_downcase | contains($os)) and 
+            (.name | ascii_downcase | contains($ext)) and 
+            (
+                (.name | contains($arch)) or 
+                ($arch == "aarch64" and (.name | contains("arm64"))) or
+                ($arch == "x86_64" and (.name | contains("amd64")))
+            )
+        ) | .browser_download_url' | head -n 1)
 
     if [[ -z "$url" || "$url" == "null" ]]; then
         error "Could not find download URL for $bin_name ($arch)"
