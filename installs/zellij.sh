@@ -9,10 +9,6 @@ info "== Installing Zellij (Terminal Workspace) =="
 install_from_github "zellij-org/zellij" "zellij" "tar.gz"
 
 # Static completions for Zsh
-if [[ -d "$HOME/.oh-my-zsh" ]]; then
-    ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"
-    mkdir -p "$ZSH_COMP_DIR"
-    zellij setup --generate-completion zsh >"$ZSH_COMP_DIR/_zellij"
-fi
+install_zsh_completion "zellij" "zellij setup --generate-completion zsh"
 
 info "✅ Zellij setup complete."

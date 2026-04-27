@@ -11,11 +11,7 @@ if ! command -v fnm >/dev/null 2>&1; then
 fi
 
 # Static completions for Zsh
-if [[ -d "$HOME/.oh-my-zsh" ]]; then
-    ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"
-    mkdir -p "$ZSH_COMP_DIR"
-    export PATH="$HOME/.local/share/fnm:$PATH"
-    fnm completions --shell zsh >"$ZSH_COMP_DIR/_fnm"
-fi
+export PATH="$HOME/.local/share/fnm:$PATH"
+install_zsh_completion "fnm" "fnm completions --shell zsh"
 
 info "✅ FNM setup complete."

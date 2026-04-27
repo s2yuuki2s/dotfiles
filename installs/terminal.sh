@@ -31,8 +31,9 @@ COMMON_RC="$HOME/.shell_common"
 CONFIG_START="# --- TERMINAL TOOLS CONFIG START ---"
 CONFIG_END="# --- TERMINAL TOOLS CONFIG END ---"
 
-info "Creating common shell configuration in $COMMON_RC..."
-cat <<EOF >"$COMMON_RC"
+info "Updating common shell configuration in $COMMON_RC..."
+
+CONTENT=$(cat <<EOF
 $CONFIG_START
 # --- Environment Variables ---
 export PATH="\$HOME/.local/bin:\$HOME/.local/share/fnm:\$PATH"
@@ -55,6 +56,7 @@ if command -v zoxide >/dev/null 2>&1; then
     alias cd="z"
 fi
 command -v fnm >/dev/null 2>&1 && eval "\$(fnm env --use-on-cd --shell "\$CURRENT_SHELL")"
+command -v direnv >/dev/null 2>&1 && eval "\$(direnv hook "\$CURRENT_SHELL")"
 
 # --- Shell Completions ---
 if command -v uv >/dev/null 2>&1; then
@@ -95,6 +97,9 @@ else
 fi
 $CONFIG_END
 EOF
+)
+
+add_block_to_file "$COMMON_RC" "$CONFIG_START" "$CONFIG_END" "$CONTENT"
 
 # Ensure sourcing in .bashrc and .zshrc
 for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do

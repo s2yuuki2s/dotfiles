@@ -11,12 +11,9 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 # Static completions for Zsh
-if [[ -d "$HOME/.oh-my-zsh" ]]; then
-    ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"
-    mkdir -p "$ZSH_COMP_DIR"
-    export PATH="$HOME/.local/bin:$PATH"
-    uv generate-shell-completion zsh >"$ZSH_COMP_DIR/_uv"
-    uvx --generate-shell-completion zsh >"$ZSH_COMP_DIR/_uvx"
-fi
+export PATH="$HOME/.local/bin:$PATH"
+install_zsh_completion "uv" "uv generate-shell-completion zsh"
+install_zsh_completion "uvx" "uvx --generate-shell-completion zsh"
+
 
 info "✅ UV setup complete."

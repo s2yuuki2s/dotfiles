@@ -36,21 +36,33 @@ done
 if [[ -f "$HOME/.zshrc" ]]; then
     info "Configuring plugins and completions in .zshrc..."
     
-    # Add plugins
+    # Ensure plugins are set correctly
     for plugin in git zsh-autosuggestions zsh-syntax-highlighting fzf; do
-        if ! grep -q "plugins=(.*$plugin.*)" "$HOME/.zshrc"; then
-            sed -i "s/plugins=(\(.*\))/plugins=(\1 $plugin)/" "$HOME/.zshrc"
+        if ! grep -qE "^plugins=\(.*$plugin.*\)" "$HOME/.zshrc"; then
+            # Try to add it to the plugins list
+            sed -i "/^plugins=(/ s/)/ $plugin)/" "$HOME/.zshrc"
         fi
     done
 
-    # Add custom completions to fpath if not already there
+    # Custom completions block
     ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"
     mkdir -p "$ZSH_COMP_DIR"
     
-    if ! grep -q "fpath=(.*\$ZSH_CUSTOM/completions.*)" "$HOME/.zshrc"; then
-        # Insert before oh-my-zsh.sh is sourced
-        sed -i "/source \$ZSH\/oh-my-zsh.sh/i fpath=(\${ZSH_CUSTOM:-\$HOME/.oh-my-zsh/custom}/completions \$fpath)" "$HOME/.zshrc"
+    START_MARKER="# --- ZSH CUSTOM START ---"
+    END_MARKER="# --- ZSH CUSTOM END ---"
+    ZSH_CUSTOM_CONTENT=$(cat <<EOF
+$START_MARKER
+# Add custom completions to fpath
+fpath=(\${ZSH_CUSTOM:-\$HOME/.oh-my-zsh/custom}/completions \$fpath)
+$END_MARKER
+EOF
+)
+
+    # Insert custom completions before OMZ is sourced
+    if ! grep -q "$START_MARKER" "$HOME/.zshrc"; then
+        sed -i "/source \$ZSH\/oh-my-zsh.sh/i $START_MARKER\n$END_MARKER\n" "$HOME/.zshrc"
     fi
+    add_block_to_file "$HOME/.zshrc" "$START_MARKER" "$END_MARKER" "$ZSH_CUSTOM_CONTENT"
 fi
 
 # 5. Change Default Shell

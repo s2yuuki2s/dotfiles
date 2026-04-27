@@ -38,6 +38,50 @@ add_to_common() {
     fi
 }
 
+# Add or update a block of text in a file
+# Usage: add_block_to_file "file" "start_marker" "end_marker" "content"
+add_block_to_file() {
+    local file="$1"
+    local start_marker="$2"
+    local end_marker="$3"
+    local content="$4"
+    
+    touch "$file"
+    
+    # Create a temporary file
+    local tmp_file=$(mktemp)
+    
+    if grep -q "$start_marker" "$file"; then
+        # Replace existing block
+        awk -v start="$start_marker" -v end="$end_marker" -v block="$content" '
+            $0 ~ start { print block; skip=1; next }
+            $0 ~ end { skip=0; next }
+            !skip { print }
+        ' "$file" > "$tmp_file"
+    else
+        # Append new block
+        cat "$file" > "$tmp_file"
+        echo -e "\n$content" >> "$tmp_file"
+    fi
+    
+    cat "$tmp_file" > "$file"
+    rm "$tmp_file"
+}
+
+# Install Zsh completion
+# Usage: install_zsh_completion "name" "command_to_generate"
+install_zsh_completion() {
+    local name="$1"
+    local gen_cmd="$2"
+    
+    if [[ -d "$HOME/.oh-my-zsh" ]]; then
+        local zsh_custom="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+        local comp_dir="$zsh_custom/completions"
+        mkdir -p "$comp_dir"
+        eval "$gen_cmd" > "$comp_dir/_$name"
+    fi
+}
+
 # Download and install binary from GitHub
 # Usage: install_from_github "jesseduffield/lazygit" "lazygit" "tar.gz"
 install_from_github() {
