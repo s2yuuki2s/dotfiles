@@ -8,10 +8,11 @@ source "$DOTFILES_DIR/lib/utils.sh"
 info "== Configuring Terminal Environment =="
 
 # 1. Install APT tools
-apt_install fzf ripgrep fd-find luarocks zoxide bat eza python3-pip python3-venv
+apt_install fzf ripgrep fd-find luarocks zoxide bat eza python3-pip python3-venv direnv fish
 
 # 2. Install GitHub tools
 install_from_github "jesseduffield/lazygit" "lazygit" "tar.gz"
+install_from_github "ast-grep/ast-grep" "sg" ".zip"
 
 # 3. Install Starship
 if ! command -v starship >/dev/null 2>&1; then
@@ -33,21 +34,14 @@ CONFIG_END="# --- TERMINAL TOOLS CONFIG END ---"
 
 info "Updating common shell configuration in $COMMON_RC..."
 
-CONTENT=$(cat <<EOF
+CONTENT=$(
+  cat <<EOF
 $CONFIG_START
 # --- Environment Variables ---
 export PATH="\$HOME/.local/bin:\$HOME/.local/share/fnm:\$PATH"
 export EDITOR='nvim'
 export VISUAL='nvim'
-
-# Detect current shell more reliably
-if [ -n "\$BASH_VERSION" ]; then
-    CURRENT_SHELL="bash"
-elif [ -n "\$ZSH_VERSION" ]; then
-    CURRENT_SHELL="zsh"
-else
-    CURRENT_SHELL=\$(basename "\$SHELL" | sed 's/rc//; s/^\.//')
-fi
+CURRENT_SHELL="zsh"
 
 # --- Tool Initializations ---
 command -v starship >/dev/null 2>&1 && eval "\$(starship init "\$CURRENT_SHELL")"
@@ -58,27 +52,13 @@ fi
 command -v fnm >/dev/null 2>&1 && eval "\$(fnm env --use-on-cd --shell "\$CURRENT_SHELL")"
 command -v direnv >/dev/null 2>&1 && eval "\$(direnv hook "\$CURRENT_SHELL")"
 
-# --- Shell Completions ---
-if command -v uv >/dev/null 2>&1; then
-    if [[ "\$CURRENT_SHELL" == "bash" ]]; then
-        eval "\$(uv generate-shell-completion bash)"
-        eval "\$(uvx --generate-shell-completion bash)"
-    fi
-fi
-
 if command -v zellij >/dev/null 2>&1; then
-    if [[ "\$CURRENT_SHELL" == "bash" ]]; then
-        eval "\$(zellij setup --generate-completion bash)"
-    fi
     alias zj="zellij"
 fi
 
 
 # --- FZF & FD Keybindings ---
-if [[ "\$CURRENT_SHELL" == "bash" ]]; then
-    [[ -f /usr/share/doc/fzf/examples/key-bindings.bash ]] && source /usr/share/doc/fzf/examples/key-bindings.bash
-    [[ -f /usr/share/doc/fzf/examples/completion.bash ]] && source /usr/share/doc/fzf/examples/completion.bash
-elif [[ "\$CURRENT_SHELL" == "zsh" && ! -d "\$HOME/.oh-my-zsh" ]]; then
+if [[ "\$CURRENT_SHELL" == "zsh" && ! -d "\$HOME/.oh-my-zsh" ]]; then
     [[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]] && source /usr/share/doc/fzf/examples/key-bindings.zsh
     [[ -f /usr/share/doc/fzf/examples/completion.zsh ]] && source /usr/share/doc/fzf/examples/completion.zsh
 fi
@@ -101,11 +81,10 @@ EOF
 
 add_block_to_file "$COMMON_RC" "$CONFIG_START" "$CONFIG_END" "$CONTENT"
 
-# Ensure sourcing in .bashrc and .zshrc
-for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
-  [[ ! -f "$RC" ]] && continue
-  sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$RC"
-  if ! grep -q "source $COMMON_RC" "$RC"; then
-    echo "[ -f $COMMON_RC ] && source $COMMON_RC" >> "$RC"
+# Ensure sourcing in .zshrc only
+if [[ -f "$HOME/.zshrc" ]]; then
+  sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$HOME/.zshrc"
+  if ! grep -q "source $COMMON_RC" "$HOME/.zshrc"; then
+    echo "[ -f $COMMON_RC ] && source $COMMON_RC" >>"$HOME/.zshrc"
   fi
-done
+fi

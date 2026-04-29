@@ -65,7 +65,7 @@ EOF
     add_block_to_file "$HOME/.zshrc" "$START_MARKER" "$END_MARKER" "$ZSH_CUSTOM_CONTENT"
 fi
 
-# 5. Change Default Shell
+# 5. Change default shell to Zsh
 if [[ "$SHELL" != *"zsh"* ]]; then
     info "Changing default shell to Zsh..."
     sudo chsh -s "$(which zsh)" "$USER"

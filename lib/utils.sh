@@ -263,6 +263,21 @@ install_from_github() {
 
         sudo install "$extracted_bin" /usr/local/bin/
         rm -rf "$extract_dir"
+    elif [[ "$extension" == ".zip" ]]; then
+        local extract_dir
+        extract_dir=$(mktemp -d)
+        unzip -q "$downloaded_asset" -d "$extract_dir"
+
+        local extracted_bin
+        extracted_bin=$(find "$extract_dir" -type f -name "$bin_name" | head -n 1)
+        if [[ -z "$extracted_bin" ]]; then
+            rm -rf "$extract_dir"
+            rm -f "$downloaded_asset"
+            error "Could not locate $bin_name in downloaded archive from $repo"
+        fi
+
+        sudo install "$extracted_bin" /usr/local/bin/
+        rm -rf "$extract_dir"
     elif [[ "$extension" == ".appimage" ]]; then
         sudo install -m 0755 "$downloaded_asset" "/usr/local/bin/$bin_name"
     fi
