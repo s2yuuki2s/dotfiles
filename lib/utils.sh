@@ -216,7 +216,7 @@ install_from_github() {
         .assets[]
         | .name as $raw_name
         | ($raw_name | ascii_downcase) as $name
-        select(
+        | select(
             ($name | endswith($ext)) and
             (
                 # Either it contains "linux" or it is an .appimage (which is Linux-only)
