@@ -135,13 +135,13 @@ verify_github_asset_checksum() {
         local line_count
         line_count=$(wc -l <"$checksums_file")
         if [[ $line_count -le 3 ]]; then
-            expected_sha=$(grep -oE "[[:xdigit:]]{64}" "$checksums_file" | head -n 1 | tr '[:upper:]' '[:lower:]')
+            expected_sha=$(grep -oE "[[:xdigit:]]{64}" "$checksums_file" | head -n 1 | tr '[:upper:]' '[:lower:]' || echo "")
         fi
     fi
 
     # 3. Try a more liberal match (look for the filename in any column)
     if [[ -z "$expected_sha" ]]; then
-        expected_sha=$(awk -v f="$normalized_asset_name" '$0 ~ f {print $1}' "$checksums_file" | head -n 1 | tr '[:upper:]' '[:lower:]')
+        expected_sha=$(awk -v f="$normalized_asset_name" '$0 ~ f {print $1}' "$checksums_file" | head -n 1 | tr '[:upper:]' '[:lower:]' || echo "")
     fi
 
     rm -f "$checksums_file"
@@ -150,7 +150,7 @@ verify_github_asset_checksum() {
         if strict_checksum_enabled; then
             error "CRITICAL: Valid SHA256 checksum not found for $asset_name in $checksum_url (strict mode)."
         fi
-        warn "Verification skipped: Valid checksum entry for $asset_name not found."
+        warn "Verification skipped: Valid checksum entry for $asset_name not found in $(basename "$checksum_url")."
         return 0
     fi
 
