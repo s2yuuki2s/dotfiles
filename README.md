@@ -71,6 +71,14 @@ curl -sSL \
    ./setup.sh --strict-checksum
    ```
 
+6. **Disable automatic switch to Zsh session after setup**:
+
+   ```bash
+   ./setup.sh --no-auto-shell-switch
+   ```
+
+   By default, interactive setup sessions auto-switch to `zsh -l` at the end.
+
 ## ✅ QA Workflow (Unified)
 
 Use a single entrypoint to check/fix shell scripts:

@@ -13,6 +13,7 @@ SKIP_MODULES=""
 STRICT_CHECKSUM=false
 LOCK_DIR="/tmp/dotfiles-setup.lock"
 LOCK_ACQUIRED=false
+AUTO_SWITCH_SHELL=true
 
 scripts=(
     "zsh.sh"
@@ -83,6 +84,9 @@ for arg in "$@"; do
             ;;
         --skip=*)
             SKIP_MODULES="${arg#*=}"
+            ;;
+        --no-auto-shell-switch)
+            AUTO_SWITCH_SHELL=false
             ;;
         *)
             error "Unknown option: $arg"
@@ -168,13 +172,24 @@ for script in "${scripts[@]}"; do
     fi
 done
 
-info "🎉 All installations completed! Please restart your terminal."
+info "🎉 All installations completed!"
 
 if [[ "$CLEANUP" == true ]]; then
     if [[ "$(basename "$DOTFILES_DIR")" == ".dotfiles-temp" ]]; then
         info "Cleaning up: Removing $DOTFILES_DIR..."
+        cd "$HOME"
         rm -rf "$DOTFILES_DIR"
     else
         warn "Cleanup skipped for safety: refusing to remove non-temporary directory $DOTFILES_DIR"
+    fi
+fi
+
+if [[ "$AUTO_SWITCH_SHELL" == true ]] && command -v zsh >/dev/null 2>&1; then
+    current_shell_name=$(ps -p $$ -o comm= 2>/dev/null | tr -d ' ')
+    if [[ "${current_shell_name:-}" != "zsh" ]] && [[ -t 0 ]] && [[ -t 1 ]]; then
+        info "Switching current session to zsh..."
+        export SHELL
+        SHELL="$(command -v zsh)"
+        exec zsh -l
     fi
 fi
