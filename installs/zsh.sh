@@ -66,9 +66,11 @@ EOF
 fi
 
 # 5. Change default shell to Zsh
-if [[ "$SHELL" != *"zsh"* ]]; then
+zsh_path="$(command -v zsh)"
+current_login_shell="$(getent passwd "$USER" | cut -d: -f7)"
+if [[ "$current_login_shell" != "$zsh_path" ]]; then
     info "Changing default shell to Zsh..."
-    sudo chsh -s "$(which zsh)" "$USER"
+    sudo chsh -s "$zsh_path" "$USER"
 fi
 
 info "✅ Zsh setup complete."

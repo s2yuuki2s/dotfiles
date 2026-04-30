@@ -41,6 +41,7 @@ $CONFIG_START
 export PATH="\$HOME/.local/bin:\$HOME/.local/share/fnm:\$PATH"
 export EDITOR='nvim'
 export VISUAL='nvim'
+command -v zsh >/dev/null 2>&1 && export SHELL="\$(command -v zsh)"
 CURRENT_SHELL="zsh"
 
 # --- Tool Initializations ---

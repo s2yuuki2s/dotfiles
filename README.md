@@ -97,3 +97,4 @@ bash ./scripts/qa.sh fix
 - Idempotent configuration (safe to run multiple times).
 - Requires `sudo` privileges.
 - Uses a lock at `/tmp/dotfiles-setup.lock` to prevent concurrent setup runs.
+- Shell setup now syncs both login shell (`chsh`) and session `$SHELL` to Zsh, so child tools (including Neovim) can auto-detect Zsh without forcing `vim.o.shell`.
