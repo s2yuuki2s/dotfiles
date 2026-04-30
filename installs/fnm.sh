@@ -27,7 +27,8 @@ fi
 if ! fnm current >/dev/null 2>&1; then
     info "No Node.js version detected. Installing LTS..."
     fnm install --lts
-    fnm default lts
+    # 'lts' is a remote alias, after install fnm creates a local 'lts-latest' alias
+    fnm default lts-latest
 fi
 
 info "✅ FNM setup complete."
