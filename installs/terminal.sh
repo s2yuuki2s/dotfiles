@@ -13,6 +13,9 @@ apt_install fzf ripgrep fd-find luarocks zoxide bat eza python3-pip python3-venv
 # 2. Install GitHub tools
 install_from_github "jesseduffield/lazygit" "lazygit" "tar.gz"
 install_from_github "ast-grep/ast-grep" "sg" ".zip"
+if command -v sg >/dev/null 2>&1; then
+  sudo ln -sf "$(command -v sg)" /usr/local/bin/ast-grep
+fi
 
 # 3. Install Starship
 if ! command -v starship >/dev/null 2>&1; then
