@@ -5,7 +5,7 @@ set -euo pipefail
 # shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
-info "== Installing Starship Prompt =="
+info "Installing Starship Prompt"
 
 if ! command -v starship >/dev/null 2>&1; then
     run_remote_script "https://starship.rs/install.sh" sh --yes
@@ -17,4 +17,4 @@ if [[ ! -f "$HOME/.config/starship.toml" ]]; then
     starship preset gruvbox-rainbow -o "$HOME/.config/starship.toml"
 fi
 
-info "✅ Starship setup complete."
+success "Starship setup complete."

@@ -5,7 +5,7 @@ set -euo pipefail
 # shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
-info "== Installing SDKMAN! =="
+info "Installing SDKMAN!"
 
 # SDKMAN requires zip and unzip, which are installed in setup.sh core dependencies
 if [[ ! -d "$HOME/.sdkman" ]]; then
@@ -21,4 +21,4 @@ add_to_common 'export SDKMAN_DIR="$HOME/.sdkman"'
 # shellcheck disable=SC2016
 add_to_common '[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"'
 
-info "✅ SDKMAN! setup complete."
+success "SDKMAN! setup complete."

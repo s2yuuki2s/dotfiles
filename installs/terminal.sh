@@ -5,7 +5,7 @@ set -euo pipefail
 # shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
-info "== Configuring Terminal Environment =="
+info "Configuring Terminal Environment"
 
 # 1. Install APT tools
 apt_install fzf ripgrep fd-find luarocks zoxide bat eza python3-pip python3-venv direnv fish

@@ -5,7 +5,7 @@ set -euo pipefail
 # shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
-info "== Installing Neovim (Latest) =="
+info "Installing Neovim (Latest)"
 
 # 1. Install Neovim via GitHub AppImage
 install_from_github "neovim/neovim" "nvim" ".appimage"
@@ -17,4 +17,4 @@ if [[ ! -d "$HOME/.config/nvim" ]]; then
     rm -rf "$HOME/.config/nvim/.git"
 fi
 
-info "✅ Neovim setup complete."
+success "Neovim setup complete."

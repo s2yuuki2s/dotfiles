@@ -5,7 +5,7 @@ set -euo pipefail
 # shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
-info "== Installing Docker Engine =="
+info "Installing Docker Engine"
 
 if ! command -v docker >/dev/null 2>&1; then
     apt_install ca-certificates curl gnupg
@@ -41,4 +41,4 @@ if ! command -v docker >/dev/null 2>&1; then
     fi
 fi
 
-info "✅ Docker setup complete."
+success "Docker setup complete."

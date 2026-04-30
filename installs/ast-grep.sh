@@ -5,8 +5,8 @@ set -euo pipefail
 # shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
-info "== Installing ast-grep (sg) =="
+info "Installing ast-grep (sg)"
 
 install_from_github "ast-grep/ast-grep" "sg" ".zip" "ast-grep"
 
-info "✅ ast-grep setup complete."
+success "ast-grep setup complete."

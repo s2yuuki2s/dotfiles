@@ -5,7 +5,7 @@ set -euo pipefail
 # shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
-info "== Installing UV (Python Package Manager) =="
+info "Installing UV (Python Package Manager)"
 
 if ! command -v uv >/dev/null 2>&1; then
     INSTALLER_NO_MODIFY_PATH=1 run_remote_script "https://astral.sh/uv/install.sh" sh
@@ -16,4 +16,4 @@ export PATH="$HOME/.local/bin:$PATH"
 install_zsh_completion "uv" "uv generate-shell-completion zsh"
 install_zsh_completion "uvx" "uvx --generate-shell-completion zsh"
 
-info "✅ UV setup complete."
+success "UV setup complete."

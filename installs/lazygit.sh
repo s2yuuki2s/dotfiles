@@ -5,8 +5,8 @@ set -euo pipefail
 # shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
-info "== Installing Lazygit =="
+info "Installing Lazygit"
 
 install_from_github "jesseduffield/lazygit" "lazygit" "tar.gz"
 
-info "✅ Lazygit setup complete."
+success "Lazygit setup complete."

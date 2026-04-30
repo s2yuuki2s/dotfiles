@@ -5,8 +5,8 @@ set -euo pipefail
 # shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
-info "== Installing Lazydocker =="
+info "Installing Lazydocker"
 
 install_from_github "jesseduffield/lazydocker" "lazydocker" "tar.gz"
 
-info "✅ Lazydocker setup complete."
+success "Lazydocker setup complete."

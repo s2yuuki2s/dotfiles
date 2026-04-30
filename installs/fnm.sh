@@ -5,7 +5,7 @@ set -euo pipefail
 # shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
-info "== Installing FNM (Fast Node Manager) =="
+info "Installing FNM (Fast Node Manager)"
 
 if ! command -v fnm >/dev/null 2>&1; then
     arch=$(get_arch)
@@ -51,4 +51,4 @@ if ! fnm current >/dev/null 2>&1; then
     fnm default lts-latest
 fi
 
-info "✅ FNM setup complete."
+success "FNM setup complete."

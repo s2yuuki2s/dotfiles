@@ -5,7 +5,7 @@ set -euo pipefail
 # shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
-info "== Starting Dotfiles Setup =="
+info "Starting Dotfiles Setup"
 
 CLEANUP=false
 ONLY_MODULES=""
@@ -139,7 +139,7 @@ cleanup() {
     [[ $SUDO_PID -ne 0 ]] && kill "$SUDO_PID" 2>/dev/null || true
     [[ "$LOCK_ACQUIRED" == true ]] && rm -rf "$LOCK_DIR"
     if [[ $exit_code -ne 0 ]]; then
-        echo -e "${COLOR_ERROR}[ERROR]${COLOR_RESET} Setup failed with exit code $exit_code" >&2
+        echo -e "${COLOR_ERROR}✖ Setup failed with exit code $exit_code${COLOR_RESET}" >&2
     fi
     trap - EXIT
     exit "$exit_code"
@@ -147,7 +147,7 @@ cleanup() {
 trap cleanup EXIT
 
 # Initial system update
-info "== Updating System Repositories =="
+info "Updating System Repositories"
 sudo apt-get update
 
 # Core dependencies
@@ -170,7 +170,7 @@ for script in "${scripts[@]}"; do
 
     script_path="$DOTFILES_DIR/installs/$script"
     if [[ -f "$script_path" ]]; then
-        info "▶ Executing $module..."
+        info "Executing $module..."
         if bash "$script_path"; then
             success_modules+=("$module")
         else
@@ -184,23 +184,23 @@ done
 
 # Print Summary
 echo ""
-info "== Installation Summary =="
+info "Installation Summary"
 echo "----------------------------------------"
 for mod in "${success_modules[@]:-}"; do
-    [[ -n "$mod" ]] && echo -e "${COLOR_SUCCESS}  ✓ ${mod}${COLOR_RESET}"
+    [[ -n "$mod" ]] && success " ${mod}"
 done
 for mod in "${skipped_modules[@]:-}"; do
-    [[ -n "$mod" ]] && echo -e "${COLOR_WARN}  - ${mod} (skipped)${COLOR_RESET}"
+    [[ -n "$mod" ]] && warn " ${mod} (skipped)"
 done
 for mod in "${failed_modules[@]:-}"; do
-    [[ -n "$mod" ]] && echo -e "${COLOR_ERROR}  ✖ ${mod} (failed)${COLOR_RESET}"
+    [[ -n "$mod" ]] && echo -e "${COLOR_ERROR}✖  ${mod} (failed)${COLOR_RESET}"
 done
 echo "----------------------------------------"
 
 if [[ ${#failed_modules[@]} -gt 0 ]]; then
     warn "Some modules failed to install."
 else
-    success "== All Installations Completed Successfully! =="
+    success "All Installations Completed Successfully!"
 fi
 echo ""
 

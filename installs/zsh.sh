@@ -5,7 +5,7 @@ set -euo pipefail
 # shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
-info "== Installing Zsh & Oh My Zsh =="
+info "Installing Zsh & Oh My Zsh"
 
 # 1. Install Zsh
 apt_install zsh
@@ -82,4 +82,4 @@ if [[ "$current_login_shell" != "$zsh_path" ]]; then
     sudo chsh -s "$zsh_path" "$USER"
 fi
 
-info "✅ Zsh setup complete."
+success "Zsh setup complete."
