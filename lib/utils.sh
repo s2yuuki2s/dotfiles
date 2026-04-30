@@ -79,10 +79,14 @@ verify_github_asset_checksum() {
     local asset_name="$2"
     local asset_file="$3"
 
+    # Strip common extensions for better matching (e.g., myapp.tar.gz -> myapp)
+    local asset_base
+    asset_base=$(echo "$asset_name" | sed -E 's/\.(tar\.gz|zip|tgz|appimage|tar\.xz)$//i')
+
     # Identify checksum file.
-    # Prioritize a checksum file that matches the asset name (e.g., asset.zip -> asset.zip.sha256 or asset.sha256)
+    # Prioritize a checksum file that matches the asset base name.
     local checksum_url
-    checksum_url=$(jq -r --arg asset "$asset_name" '
+    checksum_url=$(jq -r --arg asset_base "$asset_base" '
         .assets[]
         | .name as $n
         | ($n | ascii_downcase) as $ln
@@ -90,7 +94,7 @@ verify_github_asset_checksum() {
         | {
             url: .browser_download_url,
             score: (
-                if ($ln | contains($asset | ascii_downcase)) then 10
+                if ($ln | contains($asset_base | ascii_downcase)) then 10
                 elif ($ln | contains("sha256")) then 5
                 else 1
                 end
@@ -106,7 +110,7 @@ verify_github_asset_checksum() {
         return 0
     fi
 
-    info "Verifying $asset_name with $checksum_url..."
+    info "Verifying $asset_name with $(basename "$checksum_url")..."
     local checksums_file
     checksums_file=$(mktemp)
     if ! download_to_file "$checksum_url" "$checksums_file"; then
