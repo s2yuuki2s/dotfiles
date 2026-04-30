@@ -2,6 +2,7 @@
 set -euo pipefail
 
 [[ -z "${DOTFILES_DIR:-}" ]] && DOTFILES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
 info "== Installing UV (Python Package Manager) =="
@@ -14,6 +15,5 @@ fi
 export PATH="$HOME/.local/bin:$PATH"
 install_zsh_completion "uv" "uv generate-shell-completion zsh"
 install_zsh_completion "uvx" "uvx --generate-shell-completion zsh"
-
 
 info "✅ UV setup complete."

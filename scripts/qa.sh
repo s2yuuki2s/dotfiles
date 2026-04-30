@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-
-info() { echo "[INFO] $1"; }
-error() { echo "[ERROR] $1" >&2; exit 1; }
+[[ -z "${DOTFILES_DIR:-}" ]] && DOTFILES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# shellcheck source=lib/utils.sh
+source "$DOTFILES_DIR/lib/utils.sh"
 
 require_cmd() {
     local cmd="$1"
@@ -12,39 +11,39 @@ require_cmd() {
 }
 
 collect_shell_files() {
-    git -C "$ROOT_DIR" ls-files "*.sh"
+    git -C "$DOTFILES_DIR" ls-files "*.sh"
 }
 
 run_bash_parse_check() {
-    info "Running bash parser checks..."
+    info "== Running Bash Parser Checks =="
     local file
     while IFS= read -r file; do
-        bash -n "$ROOT_DIR/$file"
+        bash -n "$DOTFILES_DIR/$file"
     done < <(collect_shell_files)
 }
 
 run_shellcheck() {
-    info "Running shellcheck..."
+    info "== Running ShellCheck =="
     require_cmd shellcheck
 
     mapfile -t files < <(collect_shell_files)
     local abs=()
     local file
     for file in "${files[@]}"; do
-        abs+=("$ROOT_DIR/$file")
+        abs+=("$DOTFILES_DIR/$file")
     done
     shellcheck --severity=warning "${abs[@]}"
 }
 
 run_shfmt_fix() {
-    info "Formatting shell scripts with shfmt..."
+    info "== Formatting Shell Scripts =="
     require_cmd shfmt
 
     mapfile -t files < <(collect_shell_files)
     local abs=()
     local file
     for file in "${files[@]}"; do
-        abs+=("$ROOT_DIR/$file")
+        abs+=("$DOTFILES_DIR/$file")
     done
     shfmt -w -i 4 -ci "${abs[@]}"
 }
@@ -65,13 +64,13 @@ main() {
         check)
             run_bash_parse_check
             run_shellcheck
-            info "QA checks passed."
+            info "✅ QA checks passed."
             ;;
         fix)
             run_shfmt_fix
             run_bash_parse_check
             run_shellcheck
-            info "Formatting and QA checks passed."
+            info "✅ Formatting and QA checks passed."
             ;;
         *)
             usage

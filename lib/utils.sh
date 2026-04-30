@@ -9,7 +9,10 @@ export COLOR_ERROR="\033[31m"
 # Utility functions
 info() { echo -e "${COLOR_INFO}[INFO]${COLOR_RESET} $1"; }
 warn() { echo -e "${COLOR_WARN}[WARN]${COLOR_RESET} $1"; }
-error() { echo -e "${COLOR_ERROR}[ERROR]${COLOR_RESET} $1"; exit 1; }
+error() {
+    echo -e "${COLOR_ERROR}[ERROR]${COLOR_RESET} $1"
+    exit 1
+}
 
 strict_checksum_enabled() {
     [[ "${DOTFILES_STRICT_CHECKSUM:-false}" == "true" ]]
@@ -21,7 +24,7 @@ get_arch() {
     arch=$(uname -m)
     case "$arch" in
         x86_64) echo "x86_64" ;;
-        aarch64|arm64) echo "aarch64" ;;
+        aarch64 | arm64) echo "aarch64" ;;
         *) error "Unsupported architecture: $arch" ;;
     esac
 }
@@ -82,7 +85,7 @@ verify_github_asset_checksum() {
         .assets[]
         | select(.name | ascii_downcase | test("(sha256|checksums?|sums)"))
         | .browser_download_url
-    ' <<< "$release_json" | head -n 1)
+    ' <<<"$release_json" | head -n 1)
 
     if [[ -z "$checksum_url" || "$checksum_url" == "null" ]]; then
         if strict_checksum_enabled; then
@@ -105,17 +108,17 @@ verify_github_asset_checksum() {
 
     local expected_sha=""
     local normalized_asset_name="${asset_name#./}"
-    
+
     # Try to find the checksum in the file using various formats
     expected_sha=$(grep -i "$normalized_asset_name" "$checksums_file" | awk '{print $1}' | tr '[:upper:]' '[:lower:]' | head -n 1)
-    
+
     # If not found, try a more liberal match
     if [[ -z "$expected_sha" ]]; then
-         expected_sha=$(grep -E "^[[:xdigit:]]{64}[[:space:]]" "$checksums_file" | head -n 1 | awk '{print $1}')
-         # This is a bit risky if multiple files are in the checksum file, 
-         # but some releases only have one checksum in the file.
-         # Let's stick to strict matching if possible.
-         expected_sha=$(awk -v f="$normalized_asset_name" '$2 == f || $2 == "*"f {print $1}' "$checksums_file" | head -n 1)
+        expected_sha=$(grep -E "^[[:xdigit:]]{64}[[:space:]]" "$checksums_file" | head -n 1 | awk '{print $1}')
+        # This is a bit risky if multiple files are in the checksum file,
+        # but some releases only have one checksum in the file.
+        # Let's stick to strict matching if possible.
+        expected_sha=$(awk -v f="$normalized_asset_name" '$2 == f || $2 == "*"f {print $1}' "$checksums_file" | head -n 1)
     fi
 
     rm -f "$checksums_file"
@@ -144,7 +147,7 @@ add_to_common() {
     local common_rc="$HOME/.shell_common"
     touch "$common_rc"
     if ! grep -Fq "$line" "$common_rc"; then
-        echo "$line" >> "$common_rc"
+        echo "$line" >>"$common_rc"
     fi
 }
 
@@ -155,27 +158,27 @@ add_block_to_file() {
     local start_marker="$2"
     local end_marker="$3"
     local content="$4"
-    
+
     touch "$file"
-    
+
     # Create a temporary file
     local tmp_file
     tmp_file=$(mktemp)
-    
+
     if grep -q "$start_marker" "$file"; then
         # Replace existing block
         awk -v start="$start_marker" -v end="$end_marker" -v block="$content" '
             $0 ~ start { print block; skip=1; next }
             $0 ~ end { skip=0; next }
             !skip { print }
-        ' "$file" > "$tmp_file"
+        ' "$file" >"$tmp_file"
     else
         # Append new block
-        cat "$file" > "$tmp_file"
-        echo -e "\n$content" >> "$tmp_file"
+        cat "$file" >"$tmp_file"
+        echo -e "\n$content" >>"$tmp_file"
     fi
-    
-    cat "$tmp_file" > "$file"
+
+    cat "$tmp_file" >"$file"
     rm "$tmp_file"
 }
 
@@ -184,12 +187,12 @@ add_block_to_file() {
 install_zsh_completion() {
     local name="$1"
     local gen_cmd="$2"
-    
+
     if [[ -d "$HOME/.oh-my-zsh" ]]; then
         local zsh_custom="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
         local comp_dir="$zsh_custom/completions"
         mkdir -p "$comp_dir"
-        eval "$gen_cmd" > "$comp_dir/_$name"
+        eval "$gen_cmd" >"$comp_dir/_$name"
     fi
 }
 
@@ -205,9 +208,9 @@ install_from_github() {
     arch=$(get_arch)
     local os="linux"
     local extension_lower="${extension,,}"
-    
+
     info "Installing $bin_name from $repo..."
-    
+
     # Smarter asset selection:
     # 1. Matches architecture (handles x86_64/amd64/linux64 and aarch64/arm64)
     # 2. Matches OS (linux) - relaxed for AppImages which are inherently Linux
@@ -236,7 +239,7 @@ install_from_github() {
         )
         | [$raw_name, .browser_download_url]
         | @tsv
-    ' <<< "$release_json" | head -n 1)
+    ' <<<"$release_json" | head -n 1)
 
     if [[ -z "$asset_tsv" || "$asset_tsv" == "null" ]]; then
         error "Could not find download URL for $bin_name ($arch)"

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 [[ -z "${DOTFILES_DIR:-}" ]] && DOTFILES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
 info "== Installing SDKMAN! =="
@@ -15,7 +16,9 @@ else
 fi
 
 # Add to common shell config
+# shellcheck disable=SC2016
 add_to_common 'export SDKMAN_DIR="$HOME/.sdkman"'
+# shellcheck disable=SC2016
 add_to_common '[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"'
 
 info "✅ SDKMAN! setup complete."

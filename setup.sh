@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Load utilities
-DOTFILES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+[[ -z "${DOTFILES_DIR:-}" ]] && DOTFILES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
-info "Starting Dotfiles setup..."
+info "== Starting Dotfiles Setup =="
 
 CLEANUP=false
 ONLY_MODULES=""
@@ -140,7 +140,7 @@ cleanup() {
 trap cleanup EXIT
 
 # Initial system update
-info "Updating system repositories..."
+info "== Updating System Repositories =="
 sudo apt-get update
 
 # Core dependencies
@@ -165,7 +165,7 @@ for script in "${scripts[@]}"; do
     fi
 done
 
-info "🎉 All installations completed!"
+info "== All Installations Completed! =="
 
 if [[ "$CLEANUP" == true ]]; then
     if [[ "$(basename "$DOTFILES_DIR")" == ".dotfiles-temp" ]]; then

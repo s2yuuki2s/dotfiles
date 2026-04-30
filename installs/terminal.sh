@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Load utilities if not already loaded
 [[ -z "${DOTFILES_DIR:-}" ]] && DOTFILES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# shellcheck source=lib/utils.sh
 source "$DOTFILES_DIR/lib/utils.sh"
 
 info "== Configuring Terminal Environment =="
@@ -16,17 +16,17 @@ install_from_github "ast-grep/ast-grep" "sg" ".zip" "ast-grep"
 
 # 3. Install Starship
 if ! command -v starship >/dev/null 2>&1; then
-  info "Installing Starship..."
-  run_remote_script "https://starship.rs/install.sh" sh --yes
+    info "Installing Starship..."
+    run_remote_script "https://starship.rs/install.sh" sh --yes
 fi
 
 # 4. Symlinks & Theme
 mkdir -p "$HOME/.local/bin" "$HOME/.config"
 if [[ -f /usr/bin/batcat ]] && [[ "$(readlink -f "$HOME/.local/bin/bat")" != "/usr/bin/batcat" ]]; then
-  ln -sf /usr/bin/batcat "$HOME/.local/bin/bat"
+    ln -sf /usr/bin/batcat "$HOME/.local/bin/bat"
 fi
 if [[ -f /usr/bin/fdfind ]] && [[ "$(readlink -f "$HOME/.local/bin/fd")" != "/usr/bin/fdfind" ]]; then
-  ln -sf /usr/bin/fdfind "$HOME/.local/bin/fd"
+    ln -sf /usr/bin/fdfind "$HOME/.local/bin/fd"
 fi
 
 command -v starship >/dev/null && starship preset gruvbox-rainbow -o "$HOME/.config/starship.toml"
@@ -39,7 +39,7 @@ CONFIG_END="# --- TERMINAL TOOLS CONFIG END ---"
 info "Updating common shell configuration in $COMMON_RC..."
 
 CONTENT=$(
-  cat <<EOF
+    cat <<EOF
 $CONFIG_START
 # --- Environment Variables ---
 export PATH="\$HOME/.local/bin:\$HOME/.local/share/fnm:\$PATH"
@@ -97,8 +97,8 @@ add_block_to_file "$COMMON_RC" "$CONFIG_START" "$CONFIG_END" "$CONTENT"
 
 # Ensure sourcing in .zshrc only
 if [[ -f "$HOME/.zshrc" ]]; then
-  sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$HOME/.zshrc"
-  if ! grep -q "source $COMMON_RC" "$HOME/.zshrc"; then
-    echo "[ -f $COMMON_RC ] && source $COMMON_RC" >>"$HOME/.zshrc"
-  fi
+    sed -i "/$CONFIG_START/,/$CONFIG_END/d" "$HOME/.zshrc"
+    if ! grep -q "source $COMMON_RC" "$HOME/.zshrc"; then
+        echo "[ -f $COMMON_RC ] && source $COMMON_RC" >>"$HOME/.zshrc"
+    fi
 fi
