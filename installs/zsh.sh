@@ -37,12 +37,19 @@ if [[ -f "$HOME/.zshrc" ]]; then
     info "Configuring plugins and completions in .zshrc..."
     
     # Ensure plugins are set correctly
-    for plugin in git zsh-autosuggestions zsh-syntax-highlighting fzf; do
-        if ! grep -qE "^plugins=\(.*$plugin.*\)" "$HOME/.zshrc"; then
-            # Try to add it to the plugins list
-            sed -i "/^plugins=(/ s/)/ $plugin)/" "$HOME/.zshrc"
+    required_plugins=("git" "zsh-autosuggestions" "zsh-syntax-highlighting" "fzf")
+    current_plugins=$(grep -E "^plugins=\(" "$HOME/.zshrc" | sed -E 's/plugins=\((.*)\)/\1/')
+    
+    # shellcheck disable=SC2206
+    updated_plugins=($current_plugins)
+    for p in "${required_plugins[@]}"; do
+        if [[ ! " ${updated_plugins[*]} " == *" $p "* ]]; then
+            updated_plugins+=("$p")
         fi
     done
+    
+    plugins_string="${updated_plugins[*]}"
+    sed -i "s/^plugins=(.*/plugins=($plugins_string)/" "$HOME/.zshrc"
 
     # Custom completions block
     ZSH_COMP_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/completions"

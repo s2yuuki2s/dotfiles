@@ -15,38 +15,6 @@ collect_shell_files() {
     git -C "$ROOT_DIR" ls-files "*.sh"
 }
 
-collect_install_scripts() {
-    (
-        cd "$ROOT_DIR/installs"
-        find . -maxdepth 1 -type f -name "*.sh" -printf "%f\n" | sort
-    )
-}
-
-collect_setup_modules() {
-    sed -n '/^scripts=(/,/)/p' "$ROOT_DIR/setup.sh" \
-        | sed -n 's/^[[:space:]]*"\([^"]\+\.sh\)".*/\1/p' \
-        | sort
-}
-
-check_setup_module_registry() {
-    local install_list
-    local setup_list
-    install_list=$(collect_install_scripts)
-    setup_list=$(collect_setup_modules)
-
-    local missing_in_setup
-    local missing_in_installs
-    missing_in_setup=$(comm -23 <(printf "%s\n" "$install_list") <(printf "%s\n" "$setup_list") || true)
-    missing_in_installs=$(comm -13 <(printf "%s\n" "$install_list") <(printf "%s\n" "$setup_list") || true)
-
-    if [[ -n "$missing_in_setup" ]]; then
-        error "setup.sh is missing modules for: $missing_in_setup"
-    fi
-    if [[ -n "$missing_in_installs" ]]; then
-        error "setup.sh references missing install scripts: $missing_in_installs"
-    fi
-}
-
 run_bash_parse_check() {
     info "Running bash parser checks..."
     local file
@@ -96,14 +64,12 @@ main() {
     case "$mode" in
         check)
             run_bash_parse_check
-            check_setup_module_registry
             run_shellcheck
             info "QA checks passed."
             ;;
         fix)
             run_shfmt_fix
             run_bash_parse_check
-            check_setup_module_registry
             run_shellcheck
             info "Formatting and QA checks passed."
             ;;

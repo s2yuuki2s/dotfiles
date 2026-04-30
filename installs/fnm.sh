@@ -22,4 +22,11 @@ else
     warn "Oh My Zsh not found, skipping fnm zsh completion."
 fi
 
+# Install Node.js if not already installed
+if ! fnm current >/dev/null 2>&1; then
+    info "No Node.js version detected. Installing LTS..."
+    fnm install --lts
+    fnm default lts
+fi
+
 info "✅ FNM setup complete."

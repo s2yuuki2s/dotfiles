@@ -32,8 +32,12 @@ if ! command -v docker >/dev/null 2>&1; then
     apt_install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
     # User group setup
-    sudo usermod -aG docker "$USER"
-    warn "You may need to log out and back in for docker group changes to take effect."
+    if ! groups "$USER" | grep -q "\bdocker\b"; then
+        sudo usermod -aG docker "$USER"
+        warn "You may need to log out and back in for docker group changes to take effect."
+    else
+        info "User $USER is already in the docker group."
+    fi
 fi
 
 info "✅ Docker setup complete."

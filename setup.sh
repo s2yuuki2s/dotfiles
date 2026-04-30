@@ -15,19 +15,7 @@ LOCK_DIR="/tmp/dotfiles-setup.lock"
 LOCK_ACQUIRED=false
 AUTO_SWITCH_SHELL=true
 
-scripts=(
-    "zsh.sh"
-    "terminal.sh"
-    "fnm.sh"
-    "uv.sh"
-    "rust.sh"
-    "sdkman.sh"
-    "neovim.sh"
-    "zellij.sh"
-    "docker.sh"
-    "lazydocker.sh"
-)
-
+# Helper functions
 csv_has() {
     local csv="$1"
     local item="$2"
@@ -37,6 +25,7 @@ csv_has() {
 validate_modules() {
     local csv="$1"
     local label="$2"
+    local available="$3"
 
     [[ -z "$csv" ]] && return 0
 
@@ -46,8 +35,8 @@ validate_modules() {
             error "Invalid module name in $label: $module"
         fi
         module="${module%.sh}"
-        if ! csv_has "$AVAILABLE_MODULES" "$module"; then
-            error "Unknown module in $label: $module"
+        if ! csv_has "$available" "$module"; then
+            error "Unknown module in $label: $module (Available: $available)"
         fi
     done
 }
@@ -71,26 +60,45 @@ normalize_modules_csv() {
     echo "$normalized"
 }
 
+# Auto-discover installation scripts
+PREFERRED_ORDER=("zsh.sh" "terminal.sh")
+scripts=()
+
+# First, add preferred scripts if they exist
+for pref in "${PREFERRED_ORDER[@]}"; do
+    if [[ -f "$DOTFILES_DIR/installs/$pref" ]]; then
+        scripts+=("$pref")
+    fi
+done
+
+# Then, add the rest alphabetically
+while IFS= read -r script; do
+    is_pref=false
+    for pref in "${PREFERRED_ORDER[@]}"; do
+        [[ "$script" == "$pref" ]] && is_pref=true && break
+    done
+    [[ "$is_pref" == false ]] && scripts+=("$script")
+done < <(find "$DOTFILES_DIR/installs" -maxdepth 1 -type f -name "*.sh" -printf "%f\n" | sort)
+
+AVAILABLE_MODULES=""
+for script in "${scripts[@]}"; do
+    module="${script%.sh}"
+    if [[ -z "$AVAILABLE_MODULES" ]]; then
+        AVAILABLE_MODULES="$module"
+    else
+        AVAILABLE_MODULES="$AVAILABLE_MODULES,$module"
+    fi
+done
+
+# Argument parsing
 for arg in "$@"; do
     case "$arg" in
-        --cleanup)
-            CLEANUP=true
-            ;;
-        --strict-checksum)
-            STRICT_CHECKSUM=true
-            ;;
-        --only=*)
-            ONLY_MODULES="${arg#*=}"
-            ;;
-        --skip=*)
-            SKIP_MODULES="${arg#*=}"
-            ;;
-        --no-auto-shell-switch)
-            AUTO_SWITCH_SHELL=false
-            ;;
-        *)
-            error "Unknown option: $arg"
-            ;;
+        --cleanup) CLEANUP=true ;;
+        --strict-checksum) STRICT_CHECKSUM=true ;;
+        --only=*) ONLY_MODULES="${arg#*=}" ;;
+        --skip=*) SKIP_MODULES="${arg#*=}" ;;
+        --no-auto-shell-switch) AUTO_SWITCH_SHELL=false ;;
+        *) error "Unknown option: $arg" ;;
     esac
 done
 
@@ -103,18 +111,8 @@ if [[ "$STRICT_CHECKSUM" == true ]]; then
     info "Strict checksum mode enabled."
 fi
 
-AVAILABLE_MODULES=""
-for script in "${scripts[@]}"; do
-    module="${script%.sh}"
-    if [[ -z "$AVAILABLE_MODULES" ]]; then
-        AVAILABLE_MODULES="$module"
-    else
-        AVAILABLE_MODULES="$AVAILABLE_MODULES,$module"
-    fi
-done
-
-validate_modules "$ONLY_MODULES" "--only"
-validate_modules "$SKIP_MODULES" "--skip"
+validate_modules "$ONLY_MODULES" "--only" "$AVAILABLE_MODULES"
+validate_modules "$SKIP_MODULES" "--skip" "$AVAILABLE_MODULES"
 ONLY_MODULES=$(normalize_modules_csv "$ONLY_MODULES")
 SKIP_MODULES=$(normalize_modules_csv "$SKIP_MODULES")
 
@@ -131,13 +129,8 @@ SUDO_PID=$!
 
 cleanup() {
     local exit_code=$?
-
-    if [[ $SUDO_PID -ne 0 ]]; then
-        kill "$SUDO_PID" 2>/dev/null || true
-    fi
-    if [[ "$LOCK_ACQUIRED" == true ]]; then
-        rm -rf "$LOCK_DIR"
-    fi
+    [[ $SUDO_PID -ne 0 ]] && kill "$SUDO_PID" 2>/dev/null || true
+    [[ "$LOCK_ACQUIRED" == true ]] && rm -rf "$LOCK_DIR"
     if [[ $exit_code -ne 0 ]]; then
         echo -e "${COLOR_ERROR}[ERROR]${COLOR_RESET} Setup failed with exit code $exit_code" >&2
     fi

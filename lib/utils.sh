@@ -29,16 +29,20 @@ get_arch() {
 # Idempotent apt install
 apt_install() {
     info "Installing packages: $*"
-    sudo apt-get install -y "$@"
+    if ! sudo apt-get install -y "$@"; then
+        error "Failed to install packages: $*. Please check your network connection and package repository state."
+    fi
 }
 
 # Download with retries
 download_to_file() {
     local url="$1"
     local output_file="$2"
-    curl --fail --silent --show-error --location \
+    if ! curl --fail --silent --show-error --location \
         --retry 3 --retry-delay 2 --retry-connrefused \
-        "$url" -o "$output_file"
+        "$url" -o "$output_file"; then
+        return 1
+    fi
 }
 
 # Download remote installer script and execute it from a temporary file
@@ -52,7 +56,7 @@ run_remote_script() {
     tmp_script=$(mktemp)
     if ! download_to_file "$url" "$tmp_script"; then
         rm -f "$tmp_script"
-        error "Failed to download installer from $url"
+        error "Failed to download installer from $url. Please check your internet connection."
     fi
 
     if "$runner" "$tmp_script" "$@"; then
@@ -60,6 +64,7 @@ run_remote_script() {
     else
         local exit_code=$?
         rm -f "$tmp_script"
+        warn "Remote script from $url failed with exit code $exit_code."
         return "$exit_code"
     fi
 }
@@ -71,18 +76,19 @@ verify_github_asset_checksum() {
     local asset_name="$2"
     local asset_file="$3"
 
+    # Identify checksum file (look for common names like SHA256SUMS, checksums.txt, etc.)
     local checksum_url
     checksum_url=$(jq -r '
         .assets[]
-        | select(.name | ascii_downcase | test("(sha256|checksums?)"))
+        | select(.name | ascii_downcase | test("(sha256|checksums?|sums)"))
         | .browser_download_url
     ' <<< "$release_json" | head -n 1)
 
     if [[ -z "$checksum_url" || "$checksum_url" == "null" ]]; then
         if strict_checksum_enabled; then
-            error "No checksum asset found for $asset_name (strict checksum mode)."
+            error "CRITICAL: No checksum asset found for $asset_name in strict checksum mode."
         fi
-        warn "No checksum asset found for $asset_name. Continuing without checksum verification."
+        warn "Verification skipped: No checksum asset found for $asset_name."
         return 0
     fi
 
@@ -91,46 +97,44 @@ verify_github_asset_checksum() {
     if ! download_to_file "$checksum_url" "$checksums_file"; then
         rm -f "$checksums_file"
         if strict_checksum_enabled; then
-            error "Could not download checksum file for $asset_name (strict checksum mode)."
+            error "CRITICAL: Could not download checksum file from $checksum_url (strict mode)."
         fi
-        warn "Could not download checksum file for $asset_name. Continuing without checksum verification."
+        warn "Verification skipped: Could not download checksum file for $asset_name."
         return 0
     fi
 
     local expected_sha=""
     local normalized_asset_name="${asset_name#./}"
-    while IFS= read -r line; do
-        if [[ "$line" =~ ^([[:xdigit:]]{64})[[:space:]]+\*?(.+)$ ]]; then
-            local listed_name="${BASH_REMATCH[2]#./}"
-            if [[ "$listed_name" == "$normalized_asset_name" ]]; then
-                expected_sha="${BASH_REMATCH[1],,}"
-                break
-            fi
-        elif [[ "$line" =~ ^SHA256\ \((.+)\)\ =\ ([[:xdigit:]]{64})$ ]]; then
-            local listed_name="${BASH_REMATCH[1]#./}"
-            if [[ "$listed_name" == "$normalized_asset_name" ]]; then
-                expected_sha="${BASH_REMATCH[2],,}"
-                break
-            fi
-        fi
-    done < "$checksums_file"
+    
+    # Try to find the checksum in the file using various formats
+    expected_sha=$(grep -i "$normalized_asset_name" "$checksums_file" | awk '{print $1}' | tr '[:upper:]' '[:lower:]' | head -n 1)
+    
+    # If not found, try a more liberal match
+    if [[ -z "$expected_sha" ]]; then
+         expected_sha=$(grep -E "^[[:xdigit:]]{64}[[:space:]]" "$checksums_file" | head -n 1 | awk '{print $1}')
+         # This is a bit risky if multiple files are in the checksum file, 
+         # but some releases only have one checksum in the file.
+         # Let's stick to strict matching if possible.
+         expected_sha=$(awk -v f="$normalized_asset_name" '$2 == f || $2 == "*"f {print $1}' "$checksums_file" | head -n 1)
+    fi
+
     rm -f "$checksums_file"
 
-    if [[ -z "$expected_sha" ]]; then
+    if [[ -z "$expected_sha" || ! "$expected_sha" =~ ^[[:xdigit:]]{64}$ ]]; then
         if strict_checksum_enabled; then
-            error "Checksum list found, but no entry matched $asset_name (strict checksum mode)."
+            error "CRITICAL: Valid SHA256 checksum not found for $asset_name in $checksum_url (strict mode)."
         fi
-        warn "Checksum list found, but no entry matched $asset_name. Continuing without checksum verification."
+        warn "Verification skipped: Valid checksum entry for $asset_name not found."
         return 0
     fi
 
     local actual_sha
     actual_sha=$(sha256sum "$asset_file" | awk '{print tolower($1)}')
     if [[ "$actual_sha" != "$expected_sha" ]]; then
-        error "Checksum mismatch for $asset_name"
+        error "SECURITY ALERT: Checksum mismatch for $asset_name!\nExpected: $expected_sha\nActual:   $actual_sha"
     fi
 
-    info "Checksum verified for $asset_name"
+    info "Checksum verified for $asset_name."
 }
 
 # Intelligent shell configuration

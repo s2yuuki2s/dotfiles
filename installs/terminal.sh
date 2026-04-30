@@ -22,8 +22,12 @@ fi
 
 # 4. Symlinks & Theme
 mkdir -p "$HOME/.local/bin" "$HOME/.config"
-[[ -f /usr/bin/batcat ]] && ln -sf /usr/bin/batcat "$HOME/.local/bin/bat"
-[[ -f /usr/bin/fdfind ]] && ln -sf /usr/bin/fdfind "$HOME/.local/bin/fd"
+if [[ -f /usr/bin/batcat ]] && [[ "$(readlink -f "$HOME/.local/bin/bat")" != "/usr/bin/batcat" ]]; then
+  ln -sf /usr/bin/batcat "$HOME/.local/bin/bat"
+fi
+if [[ -f /usr/bin/fdfind ]] && [[ "$(readlink -f "$HOME/.local/bin/fd")" != "/usr/bin/fdfind" ]]; then
+  ln -sf /usr/bin/fdfind "$HOME/.local/bin/fd"
+fi
 
 command -v starship >/dev/null && starship preset gruvbox-rainbow -o "$HOME/.config/starship.toml"
 
@@ -41,8 +45,17 @@ $CONFIG_START
 export PATH="\$HOME/.local/bin:\$HOME/.local/share/fnm:\$PATH"
 export EDITOR='nvim'
 export VISUAL='nvim'
-command -v zsh >/dev/null 2>&1 && export SHELL="\$(command -v zsh)"
-CURRENT_SHELL="zsh"
+
+# Detect current shell
+if [ -n "\$ZSH_VERSION" ]; then
+  CURRENT_SHELL="zsh"
+elif [ -n "\$BASH_VERSION" ]; then
+  CURRENT_SHELL="bash"
+elif [ -n "\$FISH_VERSION" ]; then
+  CURRENT_SHELL="fish"
+else
+  CURRENT_SHELL=\$(basename "\$SHELL")
+fi
 
 # --- Tool Initializations ---
 command -v starship >/dev/null 2>&1 && eval "\$(starship init "\$CURRENT_SHELL")"
