@@ -10,18 +10,8 @@ info "== Configuring Terminal Environment =="
 # 1. Install APT tools
 apt_install fzf ripgrep fd-find luarocks zoxide bat eza python3-pip python3-venv direnv fish
 
-# 2. Install GitHub tools
-install_from_github "jesseduffield/lazygit" "lazygit" "tar.gz"
-install_from_github "ast-grep/ast-grep" "sg" ".zip" "ast-grep"
-
-# 3. Install Starship
-if ! command -v starship >/dev/null 2>&1; then
-    info "Installing Starship..."
-    run_remote_script "https://starship.rs/install.sh" sh --yes
-fi
-
-# 4. Symlinks & Theme
-mkdir -p "$HOME/.local/bin" "$HOME/.config"
+# 2. Symlinks
+mkdir -p "$HOME/.local/bin"
 if [[ -f /usr/bin/batcat ]] && [[ "$(readlink -f "$HOME/.local/bin/bat")" != "/usr/bin/batcat" ]]; then
     ln -sf /usr/bin/batcat "$HOME/.local/bin/bat"
 fi
@@ -29,9 +19,7 @@ if [[ -f /usr/bin/fdfind ]] && [[ "$(readlink -f "$HOME/.local/bin/fd")" != "/us
     ln -sf /usr/bin/fdfind "$HOME/.local/bin/fd"
 fi
 
-command -v starship >/dev/null && starship preset gruvbox-rainbow -o "$HOME/.config/starship.toml"
-
-# 5. Common Configuration
+# 3. Common Configuration
 COMMON_RC="$HOME/.shell_common"
 CONFIG_START="# --- TERMINAL TOOLS CONFIG START ---"
 CONFIG_END="# --- TERMINAL TOOLS CONFIG END ---"

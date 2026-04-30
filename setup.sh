@@ -29,7 +29,7 @@ validate_modules() {
 
     [[ -z "$csv" ]] && return 0
 
-    IFS=',' read -r -a requested <<< "$csv"
+    IFS=',' read -r -a requested <<<"$csv"
     for module in "${requested[@]}"; do
         if ! [[ "$module" =~ ^[a-zA-Z0-9._-]+$ ]]; then
             error "Invalid module name in $label: $module"
@@ -45,9 +45,12 @@ normalize_modules_csv() {
     local csv="$1"
     local normalized=""
 
-    [[ -z "$csv" ]] && { echo ""; return 0; }
+    [[ -z "$csv" ]] && {
+        echo ""
+        return 0
+    }
 
-    IFS=',' read -r -a requested <<< "$csv"
+    IFS=',' read -r -a requested <<<"$csv"
     for module in "${requested[@]}"; do
         module="${module%.sh}"
         if [[ -z "$normalized" ]]; then
@@ -61,7 +64,7 @@ normalize_modules_csv() {
 }
 
 # Auto-discover installation scripts
-PREFERRED_ORDER=("zsh.sh" "terminal.sh")
+PREFERRED_ORDER=("zsh.sh" "terminal.sh" "starship.sh")
 scripts=()
 
 # First, add preferred scripts if they exist
@@ -124,7 +127,11 @@ fi
 
 # Keep-alive sudo
 sudo -v
-while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+while true; do
+    sudo -n true
+    sleep 60
+    kill -0 "$$" || exit
+done 2>/dev/null &
 SUDO_PID=$!
 
 cleanup() {
