@@ -79,13 +79,24 @@ verify_github_asset_checksum() {
     local asset_name="$2"
     local asset_file="$3"
 
-    # Identify checksum file (look for common names like SHA256SUMS, checksums.txt, etc.)
+    # Identify checksum file.
+    # Prioritize a checksum file that matches the asset name (e.g., asset.zip -> asset.zip.sha256 or asset.sha256)
     local checksum_url
-    checksum_url=$(jq -r '
+    checksum_url=$(jq -r --arg asset "$asset_name" '
         .assets[]
-        | select(.name | ascii_downcase | test("(sha256|checksums?|sums)"))
-        | .browser_download_url
-    ' <<<"$release_json" | head -n 1)
+        | .name as $n
+        | ($n | ascii_downcase) as $ln
+        | select($ln | test("(sha256|checksums?|sums)"))
+        | {
+            url: .browser_download_url,
+            score: (
+                if ($ln | contains($asset | ascii_downcase)) then 10
+                elif ($ln | contains("sha256")) then 5
+                else 1
+                end
+            )
+        }
+    ' <<<"$release_json" | jq -s 'sort_by(.score) | reverse | .[0].url' | tr -d '"')
 
     if [[ -z "$checksum_url" || "$checksum_url" == "null" ]]; then
         if strict_checksum_enabled; then
@@ -95,6 +106,7 @@ verify_github_asset_checksum() {
         return 0
     fi
 
+    info "Verifying $asset_name with $checksum_url..."
     local checksums_file
     checksums_file=$(mktemp)
     if ! download_to_file "$checksum_url" "$checksums_file"; then
@@ -110,14 +122,16 @@ verify_github_asset_checksum() {
     local normalized_asset_name="${asset_name#./}"
 
     # Try to find the checksum in the file using various formats
+    # 1. Look for the exact filename
     expected_sha=$(grep -i "$normalized_asset_name" "$checksums_file" | awk '{print $1}' | tr '[:upper:]' '[:lower:]' | head -n 1)
 
-    # If not found, try a more liberal match
+    # 2. If the checksum file IS the checksum for just this file (common in some repos)
+    if [[ -z "$expected_sha" ]] && [[ $(wc -l <"$checksums_file") -le 2 ]]; then
+        expected_sha=$(grep -E "^[[:xdigit:]]{64}([[:space:]]|$)" "$checksums_file" | head -n 1 | awk '{print $1}')
+    fi
+
+    # 3. Try a more liberal match
     if [[ -z "$expected_sha" ]]; then
-        expected_sha=$(grep -E "^[[:xdigit:]]{64}[[:space:]]" "$checksums_file" | head -n 1 | awk '{print $1}')
-        # This is a bit risky if multiple files are in the checksum file,
-        # but some releases only have one checksum in the file.
-        # Let's stick to strict matching if possible.
         expected_sha=$(awk -v f="$normalized_asset_name" '$2 == f || $2 == "*"f {print $1}' "$checksums_file" | head -n 1)
     fi
 
@@ -293,4 +307,5 @@ install_from_github() {
 
     rm -rf "$extract_dir"
     rm -f "$downloaded_asset"
+    info "Successfully installed $bin_name."
 }
