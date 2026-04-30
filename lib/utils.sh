@@ -189,12 +189,14 @@ install_zsh_completion() {
     fi
 }
 
-# Download and install binary from GitHub
-# Usage: install_from_github "jesseduffield/lazygit" "lazygit" "tar.gz"
+# Download and install one or more binaries from a GitHub release asset
+# Usage: install_from_github "ast-grep/ast-grep" "sg" ".zip" "ast-grep"
 install_from_github() {
     local repo=$1
     local bin_name=$2
     local extension=$3
+    shift 3
+    local bins=("$bin_name" "$@")
     local arch
     arch=$(get_arch)
     local os="linux"
@@ -253,32 +255,40 @@ install_from_github() {
             tar -xzf "$downloaded_asset" -C "$extract_dir"
         fi
 
+        local requested_bin
         local extracted_bin
-        extracted_bin=$(find "$extract_dir" -type f -name "$bin_name" | head -n 1)
-        if [[ -z "$extracted_bin" ]]; then
-            rm -rf "$extract_dir"
-            rm -f "$downloaded_asset"
-            error "Could not locate $bin_name in downloaded archive from $repo"
-        fi
-
-        sudo install "$extracted_bin" /usr/local/bin/
+        for requested_bin in "${bins[@]}"; do
+            extracted_bin=$(find "$extract_dir" -type f -name "$requested_bin" | head -n 1)
+            if [[ -z "$extracted_bin" ]]; then
+                rm -rf "$extract_dir"
+                rm -f "$downloaded_asset"
+                error "Could not locate $requested_bin in downloaded archive from $repo"
+            fi
+            sudo install "$extracted_bin" /usr/local/bin/
+        done
         rm -rf "$extract_dir"
     elif [[ "$extension" == ".zip" ]]; then
         local extract_dir
         extract_dir=$(mktemp -d)
         unzip -q "$downloaded_asset" -d "$extract_dir"
 
+        local requested_bin
         local extracted_bin
-        extracted_bin=$(find "$extract_dir" -type f -name "$bin_name" | head -n 1)
-        if [[ -z "$extracted_bin" ]]; then
-            rm -rf "$extract_dir"
-            rm -f "$downloaded_asset"
-            error "Could not locate $bin_name in downloaded archive from $repo"
-        fi
-
-        sudo install "$extracted_bin" /usr/local/bin/
+        for requested_bin in "${bins[@]}"; do
+            extracted_bin=$(find "$extract_dir" -type f -name "$requested_bin" | head -n 1)
+            if [[ -z "$extracted_bin" ]]; then
+                rm -rf "$extract_dir"
+                rm -f "$downloaded_asset"
+                error "Could not locate $requested_bin in downloaded archive from $repo"
+            fi
+            sudo install "$extracted_bin" /usr/local/bin/
+        done
         rm -rf "$extract_dir"
     elif [[ "$extension" == ".appimage" ]]; then
+        if [[ ${#bins[@]} -ne 1 ]]; then
+            rm -f "$downloaded_asset"
+            error "AppImage install supports only one binary name."
+        fi
         sudo install -m 0755 "$downloaded_asset" "/usr/local/bin/$bin_name"
     fi
 
