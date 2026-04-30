@@ -79,12 +79,17 @@ verify_github_asset_checksum() {
     local asset_name="$2"
     local asset_file="$3"
 
+    # Wrap in a function-level check to allow easy skipping
+    if [[ "${DOTFILES_SKIP_CHECKSUM:-false}" == "true" ]]; then
+        warn "Checksum verification skipped by user."
+        return 0
+    fi
+
     # Strip common extensions for better matching (e.g., myapp.tar.gz -> myapp)
     local asset_base
     asset_base=$(echo "$asset_name" | sed -E 's/\.(tar\.gz|zip|tgz|appimage|tar\.xz)$//i')
 
     # Identify checksum file.
-    # Prioritize a checksum file that matches the asset base name.
     local checksum_url
     checksum_url=$(jq -r --arg asset_base "$asset_base" '
         .assets[]
@@ -111,57 +116,68 @@ verify_github_asset_checksum() {
     fi
 
     info "Verifying $asset_name with $(basename "$checksum_url")..."
-    local checksums_file
-    checksums_file=$(mktemp)
-    if ! download_to_file "$checksum_url" "$checksums_file"; then
+    
+    # We use a subshell ( ( ... ) ) to ensure that any 'set -e' trigger inside 
+    # the verification logic doesnt kill the main script.
+    (
+        set -e
+        local checksums_file
+        checksums_file=$(mktemp)
+        
+        if ! curl --fail --silent --location "$checksum_url" -o "$checksums_file"; then
+            rm -f "$checksums_file"
+            exit 2 # Special exit code for download failure
+        fi
+
+        local expected_sha=""
+        local normalized_asset_name="${asset_name#./}"
+
+        # 1. Look for the exact filename
+        expected_sha=$(grep -i "$normalized_asset_name" "$checksums_file" | awk '{print $1}' | tr '[:upper:]' '[:lower:]' | head -n 1 || echo "")
+
+        # 2. Aggressive search for small files
+        if [[ -z "$expected_sha" ]]; then
+            if [[ $(wc -l <"$checksums_file") -le 3 ]]; then
+                expected_sha=$(grep -oE "[[:xdigit:]]{64}" "$checksums_file" | head -n 1 | tr '[:upper:]' '[:lower:]' || echo "")
+            fi
+        fi
+
+        # 3. Liberal match
+        if [[ -z "$expected_sha" ]]; then
+            expected_sha=$(awk -v f="$normalized_asset_name" '$0 ~ f {print $1}' "$checksums_file" | head -n 1 | tr '[:upper:]' '[:lower:]' || echo "")
+        fi
+
         rm -f "$checksums_file"
-        if strict_checksum_enabled; then
-            error "CRITICAL: Could not download checksum file from $checksum_url (strict mode)."
+
+        if [[ -z "$expected_sha" || ! "$expected_sha" =~ ^[[:xdigit:]]{64}$ ]]; then
+            exit 3 # Special exit code for "checksum not found"
         fi
-        warn "Verification skipped: Could not download checksum file for $asset_name."
-        return 0
-    fi
 
-    local expected_sha=""
-    local normalized_asset_name="${asset_name#./}"
-
-    # Try to find the checksum in the file using various formats
-    # 1. Look for the exact filename
-    expected_sha=$(grep -i "$normalized_asset_name" "$checksums_file" | awk '{print $1}' | tr '[:upper:]' '[:lower:]' | head -n 1)
-
-    # 2. If the checksum file IS the checksum for just this file (common in some repos)
-    # We are more aggressive here: if the file is small, just grab the first hex string
-    if [[ -z "$expected_sha" ]]; then
-        local line_count
-        line_count=$(wc -l <"$checksums_file")
-        if [[ $line_count -le 3 ]]; then
-            expected_sha=$(grep -oE "[[:xdigit:]]{64}" "$checksums_file" | head -n 1 | tr '[:upper:]' '[:lower:]' || echo "")
+        local actual_sha
+        actual_sha=$(sha256sum "$asset_file" | awk '{print tolower($1)}')
+        if [[ "$actual_sha" != "$expected_sha" ]]; then
+            echo -e "EXPECTED:$expected_sha\nACTUAL:$actual_sha" >&2
+            exit 4 # Special exit code for mismatch
         fi
-    fi
+    ) 2> >(read -r err_data; echo "$err_data" >&2) && local verify_status=0 || local verify_status=$?
 
-    # 3. Try a more liberal match (look for the filename in any column)
-    if [[ -z "$expected_sha" ]]; then
-        expected_sha=$(awk -v f="$normalized_asset_name" '$0 ~ f {print $1}' "$checksums_file" | head -n 1 | tr '[:upper:]' '[:lower:]' || echo "")
-    fi
+    case $verify_status in
+        0) info "Checksum verified for $asset_name." ;;
+        2) warn "Verification skipped: Could not download checksum file." ;;
+        3) 
+            if strict_checksum_enabled; then error "CRITICAL: Checksum not found (strict mode)."; fi
+            warn "Verification skipped: No valid SHA256 found in checksum file." 
+            ;;
+        4)
+            # This is a real security issue, we SHOULD fail here
+            error "SECURITY ALERT: Checksum mismatch for $asset_name!"
+            ;;
+        *) warn "Verification skipped: Internal verification error (code $verify_status)." ;;
+    esac
 
-    rm -f "$checksums_file"
-
-    if [[ -z "$expected_sha" || ! "$expected_sha" =~ ^[[:xdigit:]]{64}$ ]]; then
-        if strict_checksum_enabled; then
-            error "CRITICAL: Valid SHA256 checksum not found for $asset_name in $checksum_url (strict mode)."
-        fi
-        warn "Verification skipped: Valid checksum entry for $asset_name not found in $(basename "$checksum_url")."
-        return 0
-    fi
-
-    local actual_sha
-    actual_sha=$(sha256sum "$asset_file" | awk '{print tolower($1)}')
-    if [[ "$actual_sha" != "$expected_sha" ]]; then
-        error "SECURITY ALERT: Checksum mismatch for $asset_name!\nExpected: $expected_sha\nActual:   $actual_sha"
-    fi
-
-    info "Checksum verified for $asset_name."
+    return 0
 }
+
 
 # Intelligent shell configuration
 # Usage: add_to_common "export EDITOR='nvim'"
