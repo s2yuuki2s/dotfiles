@@ -25,7 +25,10 @@ if ! command -v fnm >/dev/null 2>&1; then
 
     tmp_zip=$(mktemp)
     download_to_file "$url" "$tmp_zip"
-    verify_github_asset_checksum "$release_json" "$asset_name" "$tmp_zip"
+    if ! verify_github_asset_checksum "$release_json" "$asset_name" "$tmp_zip"; then
+        rm -f "$tmp_zip"
+        error "Checksum verification failed for FNM. Installation aborted."
+    fi
 
     mkdir -p "$HOME/.local/bin"
     unzip -oj "$tmp_zip" "fnm" -d "$HOME/.local/bin"

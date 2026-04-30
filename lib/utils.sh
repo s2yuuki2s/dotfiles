@@ -70,6 +70,7 @@ run_remote_script() {
     local runner="$2"
     shift 2
 
+    info "Executing remote script: $url"
     local tmp_script
     tmp_script=$(mktemp)
     if ! download_to_file "$url" "$tmp_script"; then
@@ -178,8 +179,7 @@ verify_github_asset_checksum() {
             fi
         fi
     ) 2> >(
-        read -r err_data
-        echo "$err_data" >&2
+        cat >&2
     ) && local verify_status=0 || local verify_status=$?
 
     case $verify_status in
@@ -187,7 +187,8 @@ verify_github_asset_checksum() {
         4) error_no_exit "SECURITY ALERT: Checksum mismatch for $asset_name!" && return 1 ;;
         *)
             if strict_checksum_enabled; then
-                warn "Verification skipped for $asset_name (code $verify_status)"
+                error_no_exit "CRITICAL: Checksum verification failed for $asset_name (code $verify_status)"
+                return 1
             fi
             ;;
     esac
