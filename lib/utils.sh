@@ -16,6 +16,9 @@ error() {
     exit 1
 }
 
+# Error without exiting (for summary table)
+error_no_exit() { echo -e "${COLOR_ERROR}✖ $1${COLOR_RESET}"; }
+
 strict_checksum_enabled() {
     [[ "${DOTFILES_STRICT_CHECKSUM:-false}" == "true" ]]
 }
@@ -102,6 +105,7 @@ verify_github_asset_checksum() {
     asset_base=$(echo "$asset_name" | sed -E 's/\.(tar\.gz|zip|tgz|appimage|tar\.xz)$//i')
 
     # Identify checksum file.
+    # Prioritize a checksum file that matches the asset base name.
     local checksum_url
     checksum_url=$(jq -r --arg asset_base "$asset_base" '
         .assets[]
@@ -143,9 +147,11 @@ verify_github_asset_checksum() {
 
         local expected_sha=""
         local normalized_asset_name="${asset_name#./}"
+        local exact_match=false
 
         # 1. Look for the exact filename
         expected_sha=$(grep -i "$normalized_asset_name" "$checksums_file" | awk '{print $1}' | tr '[:upper:]' '[:lower:]' | head -n 1 || echo "")
+        [[ -n "$expected_sha" ]] && exact_match=true
 
         # 2. Aggressive search for small files
         if [[ -z "$expected_sha" ]]; then
@@ -154,7 +160,7 @@ verify_github_asset_checksum() {
             fi
         fi
 
-        # 3. Liberal match
+        # 3. Liberal match (look for the filename in any column)
         if [[ -z "$expected_sha" ]]; then
             expected_sha=$(awk -v f="$normalized_asset_name" '$0 ~ f {print $1}' "$checksums_file" | head -n 1 | tr '[:upper:]' '[:lower:]' || echo "")
         fi
@@ -168,8 +174,14 @@ verify_github_asset_checksum() {
         local actual_sha
         actual_sha=$(sha256sum "$asset_file" | awk '{print tolower($1)}')
         if [[ "$actual_sha" != "$expected_sha" ]]; then
-            echo -e "EXPECTED:$expected_sha\nACTUAL:$actual_sha" >&2
-            exit 4 # Special exit code for mismatch
+            # If we had an exact match and it failed, it's a security alert
+            if [[ "$exact_match" == "true" ]]; then
+                echo -e "EXPECTED:$expected_sha\nACTUAL:$actual_sha" >&2
+                exit 4 # Confirmed mismatch
+            else
+                # If it was an aggressive/liberal match, it might be for a file INSIDE the archive
+                exit 5 # Ambiguous mismatch
+            fi
         fi
     ) 2> >(
         read -r err_data
@@ -185,7 +197,11 @@ verify_github_asset_checksum() {
             ;;
         4)
             # This is a real security issue, we SHOULD fail here
-            error "SECURITY ALERT: Checksum mismatch for $asset_name!"
+            error_no_exit "SECURITY ALERT: Checksum mismatch for $asset_name!"
+            return 1
+            ;;
+        5)
+            warn "Verification skipped: Found hash in $(basename "$checksum_url") but it doesn't match $asset_name. It may be intended for the binary inside the archive."
             ;;
         *) warn "Verification skipped: Internal verification error (code $verify_status)." ;;
     esac
@@ -315,7 +331,11 @@ install_from_github() {
         rm -f "$downloaded_asset"
         error "Failed to download release asset for $bin_name from $repo"
     fi
-    verify_github_asset_checksum "$release_json" "$asset_name" "$downloaded_asset"
+
+    if ! verify_github_asset_checksum "$release_json" "$asset_name" "$downloaded_asset"; then
+        rm -f "$downloaded_asset"
+        return 1
+    fi
 
     if [[ "$extension" == ".appimage" ]]; then
         if [[ ${#bins[@]} -ne 1 ]]; then
