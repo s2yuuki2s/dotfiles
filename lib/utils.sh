@@ -2,15 +2,17 @@
 
 # Colors for output
 export COLOR_RESET="\033[0m"
-export COLOR_INFO="\033[32m"
+export COLOR_INFO="\033[36m"
+export COLOR_SUCCESS="\033[32m"
 export COLOR_WARN="\033[33m"
 export COLOR_ERROR="\033[31m"
 
 # Utility functions
-info() { echo -e "${COLOR_INFO}[INFO]${COLOR_RESET} $1"; }
-warn() { echo -e "${COLOR_WARN}[WARN]${COLOR_RESET} $1"; }
+info() { echo -e "${COLOR_INFO}ℹ $1${COLOR_RESET}"; }
+success() { echo -e "${COLOR_SUCCESS}✓ $1${COLOR_RESET}"; }
+warn() { echo -e "${COLOR_WARN}⚠ $1${COLOR_RESET}"; }
 error() {
-    echo -e "${COLOR_ERROR}[ERROR]${COLOR_RESET} $1"
+    echo -e "${COLOR_ERROR}✖ $1${COLOR_RESET}"
     exit 1
 }
 
@@ -29,12 +31,22 @@ get_arch() {
     esac
 }
 
-# Idempotent apt install
+# Idempotent apt install with retry for dpkg locks
 apt_install() {
     info "Installing packages: $*"
-    if ! sudo apt-get install -y "$@"; then
-        error "Failed to install packages: $*. Please check your network connection and package repository state."
-    fi
+    local retries=5
+    local wait_time=5
+    local count=0
+
+    while [ $count -lt $retries ]; do
+        if sudo apt-get install -y "$@"; then
+            return 0
+        fi
+        count=$((count + 1))
+        warn "apt-get failed (possibly locked). Retrying in $wait_time seconds... ($count/$retries)"
+        sleep $wait_time
+    done
+    error "Failed to install packages: $*. Please check your network connection and package repository state."
 }
 
 # Download with retries
@@ -116,14 +128,14 @@ verify_github_asset_checksum() {
     fi
 
     info "Verifying $asset_name with $(basename "$checksum_url")..."
-    
-    # We use a subshell ( ( ... ) ) to ensure that any 'set -e' trigger inside 
+
+    # We use a subshell ( ( ... ) ) to ensure that any 'set -e' trigger inside
     # the verification logic doesnt kill the main script.
     (
         set -e
         local checksums_file
         checksums_file=$(mktemp)
-        
+
         if ! curl --fail --silent --location "$checksum_url" -o "$checksums_file"; then
             rm -f "$checksums_file"
             exit 2 # Special exit code for download failure
@@ -159,14 +171,17 @@ verify_github_asset_checksum() {
             echo -e "EXPECTED:$expected_sha\nACTUAL:$actual_sha" >&2
             exit 4 # Special exit code for mismatch
         fi
-    ) 2> >(read -r err_data; echo "$err_data" >&2) && local verify_status=0 || local verify_status=$?
+    ) 2> >(
+        read -r err_data
+        echo "$err_data" >&2
+    ) && local verify_status=0 || local verify_status=$?
 
     case $verify_status in
         0) info "Checksum verified for $asset_name." ;;
         2) warn "Verification skipped: Could not download checksum file." ;;
-        3) 
+        3)
             if strict_checksum_enabled; then error "CRITICAL: Checksum not found (strict mode)."; fi
-            warn "Verification skipped: No valid SHA256 found in checksum file." 
+            warn "Verification skipped: No valid SHA256 found in checksum file."
             ;;
         4)
             # This is a real security issue, we SHOULD fail here
@@ -177,7 +192,6 @@ verify_github_asset_checksum() {
 
     return 0
 }
-
 
 # Intelligent shell configuration
 # Usage: add_to_common "export EDITOR='nvim'"

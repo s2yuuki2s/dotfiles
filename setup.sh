@@ -153,26 +153,56 @@ sudo apt-get update
 # Core dependencies
 apt_install curl wget jq git build-essential zip unzip
 
+# Module tracking
+success_modules=()
+failed_modules=()
+skipped_modules=()
+
 for script in "${scripts[@]}"; do
     module="${script%.sh}"
     if [[ -n "$ONLY_MODULES" ]] && ! csv_has "$ONLY_MODULES" "$module"; then
         continue
     fi
     if csv_has "$SKIP_MODULES" "$module"; then
-        info "Skipping $script (filtered by --skip)."
+        skipped_modules+=("$module")
         continue
     fi
 
     script_path="$DOTFILES_DIR/installs/$script"
     if [[ -f "$script_path" ]]; then
-        info "Executing $script..."
-        bash "$script_path"
+        info "▶ Executing $module..."
+        if bash "$script_path"; then
+            success_modules+=("$module")
+        else
+            failed_modules+=("$module")
+            warn "Module $module failed."
+        fi
     else
         warn "Script $script not found, skipping."
     fi
 done
 
-info "== All Installations Completed! =="
+# Print Summary
+echo ""
+info "== Installation Summary =="
+echo "----------------------------------------"
+for mod in "${success_modules[@]:-}"; do
+    [[ -n "$mod" ]] && echo -e "${COLOR_SUCCESS}  ✓ ${mod}${COLOR_RESET}"
+done
+for mod in "${skipped_modules[@]:-}"; do
+    [[ -n "$mod" ]] && echo -e "${COLOR_WARN}  - ${mod} (skipped)${COLOR_RESET}"
+done
+for mod in "${failed_modules[@]:-}"; do
+    [[ -n "$mod" ]] && echo -e "${COLOR_ERROR}  ✖ ${mod} (failed)${COLOR_RESET}"
+done
+echo "----------------------------------------"
+
+if [[ ${#failed_modules[@]} -gt 0 ]]; then
+    warn "Some modules failed to install."
+else
+    success "== All Installations Completed Successfully! =="
+fi
+echo ""
 
 if [[ "$CLEANUP" == true ]]; then
     if [[ "$(basename "$DOTFILES_DIR")" == ".dotfiles-temp" ]]; then
