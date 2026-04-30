@@ -94,9 +94,7 @@ verify_github_asset_checksum() {
     local asset_name="$2"
     local asset_file="$3"
 
-    # Wrap in a function-level check to allow easy skipping
     if [[ "${DOTFILES_SKIP_CHECKSUM:-false}" == "true" ]]; then
-        warn "Checksum verification skipped by user."
         return 0
     fi
 
@@ -105,7 +103,6 @@ verify_github_asset_checksum() {
     asset_base=$(echo "$asset_name" | sed -E 's/\.(tar\.gz|zip|tgz|appimage|tar\.xz)$//i')
 
     # Identify checksum file.
-    # Prioritize a checksum file that matches the asset base name.
     local checksum_url
     checksum_url=$(jq -r --arg asset_base "$asset_base" '
         .assets[]
@@ -125,16 +122,15 @@ verify_github_asset_checksum() {
 
     if [[ -z "$checksum_url" || "$checksum_url" == "null" ]]; then
         if strict_checksum_enabled; then
-            error "CRITICAL: No checksum asset found for $asset_name in strict checksum mode."
+            error "CRITICAL: No checksum asset found for $asset_name."
         fi
-        warn "Verification skipped: No checksum asset found for $asset_name."
         return 0
     fi
 
-    info "Verifying $asset_name with $(basename "$checksum_url")..."
+    if strict_checksum_enabled; then
+        info "Verifying $asset_name with $(basename "$checksum_url")..."
+    fi
 
-    # We use a subshell ( ( ... ) ) to ensure that any 'set -e' trigger inside
-    # the verification logic doesnt kill the main script.
     (
         set -e
         local checksums_file
@@ -142,7 +138,7 @@ verify_github_asset_checksum() {
 
         if ! curl --fail --silent --location "$checksum_url" -o "$checksums_file"; then
             rm -f "$checksums_file"
-            exit 2 # Special exit code for download failure
+            exit 2
         fi
 
         local expected_sha=""
@@ -160,7 +156,7 @@ verify_github_asset_checksum() {
             fi
         fi
 
-        # 3. Liberal match (look for the filename in any column)
+        # 3. Liberal match
         if [[ -z "$expected_sha" ]]; then
             expected_sha=$(awk -v f="$normalized_asset_name" '$0 ~ f {print $1}' "$checksums_file" | head -n 1 | tr '[:upper:]' '[:lower:]' || echo "")
         fi
@@ -168,19 +164,17 @@ verify_github_asset_checksum() {
         rm -f "$checksums_file"
 
         if [[ -z "$expected_sha" || ! "$expected_sha" =~ ^[[:xdigit:]]{64}$ ]]; then
-            exit 3 # Special exit code for "checksum not found"
+            exit 3
         fi
 
         local actual_sha
         actual_sha=$(sha256sum "$asset_file" | awk '{print tolower($1)}')
         if [[ "$actual_sha" != "$expected_sha" ]]; then
-            # If we had an exact match and it failed, it's a security alert
             if [[ "$exact_match" == "true" ]]; then
                 echo -e "EXPECTED:$expected_sha\nACTUAL:$actual_sha" >&2
-                exit 4 # Confirmed mismatch
+                exit 4
             else
-                # If it was an aggressive/liberal match, it might be for a file INSIDE the archive
-                exit 5 # Ambiguous mismatch
+                exit 5
             fi
         fi
     ) 2> >(
@@ -189,21 +183,13 @@ verify_github_asset_checksum() {
     ) && local verify_status=0 || local verify_status=$?
 
     case $verify_status in
-        0) info "Checksum verified for $asset_name." ;;
-        2) warn "Verification skipped: Could not download checksum file." ;;
-        3)
-            if strict_checksum_enabled; then error "CRITICAL: Checksum not found (strict mode)."; fi
-            warn "Verification skipped: No valid SHA256 found in checksum file."
+        0) success "Checksum verified for $asset_name" ;;
+        4) error_no_exit "SECURITY ALERT: Checksum mismatch for $asset_name!" && return 1 ;;
+        *)
+            if strict_checksum_enabled; then
+                warn "Verification skipped for $asset_name (code $verify_status)"
+            fi
             ;;
-        4)
-            # This is a real security issue, we SHOULD fail here
-            error_no_exit "SECURITY ALERT: Checksum mismatch for $asset_name!"
-            return 1
-            ;;
-        5)
-            warn "Verification skipped: Found hash in $(basename "$checksum_url") but it doesn't match $asset_name. It may be intended for the binary inside the archive."
-            ;;
-        *) warn "Verification skipped: Internal verification error (code $verify_status)." ;;
     esac
 
     return 0
