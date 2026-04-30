@@ -130,13 +130,18 @@ verify_github_asset_checksum() {
     expected_sha=$(grep -i "$normalized_asset_name" "$checksums_file" | awk '{print $1}' | tr '[:upper:]' '[:lower:]' | head -n 1)
 
     # 2. If the checksum file IS the checksum for just this file (common in some repos)
-    if [[ -z "$expected_sha" ]] && [[ $(wc -l <"$checksums_file") -le 2 ]]; then
-        expected_sha=$(grep -E "^[[:xdigit:]]{64}([[:space:]]|$)" "$checksums_file" | head -n 1 | awk '{print $1}')
+    # We are more aggressive here: if the file is small, just grab the first hex string
+    if [[ -z "$expected_sha" ]]; then
+        local line_count
+        line_count=$(wc -l <"$checksums_file")
+        if [[ $line_count -le 3 ]]; then
+            expected_sha=$(grep -oE "[[:xdigit:]]{64}" "$checksums_file" | head -n 1 | tr '[:upper:]' '[:lower:]')
+        fi
     fi
 
-    # 3. Try a more liberal match
+    # 3. Try a more liberal match (look for the filename in any column)
     if [[ -z "$expected_sha" ]]; then
-        expected_sha=$(awk -v f="$normalized_asset_name" '$2 == f || $2 == "*"f {print $1}' "$checksums_file" | head -n 1)
+        expected_sha=$(awk -v f="$normalized_asset_name" '$0 ~ f {print $1}' "$checksums_file" | head -n 1 | tr '[:upper:]' '[:lower:]')
     fi
 
     rm -f "$checksums_file"
@@ -233,6 +238,7 @@ install_from_github() {
     # 1. Matches architecture (handles x86_64/amd64/linux64 and aarch64/arm64)
     # 2. Matches OS (linux) - relaxed for AppImages which are inherently Linux
     # 3. Matches extension
+    # 4. Scoring system to prioritize "standard" builds
     local release_json
     release_json=$(curl --fail --silent --show-error --location \
         --retry 3 --retry-delay 2 --retry-connrefused \
@@ -240,24 +246,32 @@ install_from_github() {
 
     local asset_tsv
     asset_tsv=$(jq -r --arg arch "$arch" --arg ext "$extension_lower" --arg os "$os" '
-        .assets[]
-        | .name as $raw_name
-        | ($raw_name | ascii_downcase) as $name
-        | select(
-            ($name | endswith($ext)) and
-            (
-                # Either it contains "linux" or it is an .appimage (which is Linux-only)
-                ($ext == ".appimage") or ($name | contains($os))
-            ) and
-            (
-                ($name | contains($arch)) or
-                ($arch == "aarch64" and ($name | contains("arm64"))) or
-                ($arch == "x86_64" and (($name | contains("amd64")) or ($name | contains("linux64"))))
+        [
+            .assets[]
+            | .name as $raw_name
+            | ($raw_name | ascii_downcase) as $name
+            | select(
+                ($name | endswith($ext)) and
+                (($ext == ".appimage") or ($name | contains($os))) and
+                (
+                    ($name | contains($arch)) or
+                    ($arch == "aarch64" and ($name | contains("arm64"))) or
+                    ($arch == "x86_64" and (($name | contains("amd64")) or ($name | contains("linux64"))))
+                )
             )
-        )
-        | [$raw_name, .browser_download_url]
-        | @tsv
-    ' <<<"$release_json" | head -n 1)
+            | {
+                name: $raw_name,
+                url: .browser_download_url,
+                score: (
+                    100 
+                    - (if ($name | contains("no-web")) then 50 else 0 end)
+                    - (if ($name | contains("musl")) then 20 else 0 end)
+                    - (if ($name | contains("static")) then 10 else 0 end)
+                    - ($name | length)
+                )
+            }
+        ] | sort_by(.score) | reverse | .[0] | [.name, .url] | @tsv
+    ' <<<"$release_json")
 
     if [[ -z "$asset_tsv" || "$asset_tsv" == "null" ]]; then
         error "Could not find download URL for $bin_name ($arch)"
