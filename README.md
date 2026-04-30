@@ -71,6 +71,18 @@ curl -sSL \
    ./setup.sh --strict-checksum
    ```
 
+## ✅ QA Workflow (Unified)
+
+Use a single entrypoint to check/fix shell scripts:
+
+```bash
+# Check syntax, module wiring, and lint
+bash ./scripts/qa.sh check
+
+# Auto-format shell scripts, then re-run checks
+bash ./scripts/qa.sh fix
+```
+
 ## 📝 Important Notes
 
 - Supports **x86_64** and **ARM64**.

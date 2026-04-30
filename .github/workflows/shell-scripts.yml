@@ -5,13 +5,15 @@ on:
     paths:
       - "**/*.sh"
       - ".github/workflows/shell-scripts.yml"
+      - "scripts/qa.sh"
   pull_request:
     paths:
       - "**/*.sh"
       - ".github/workflows/shell-scripts.yml"
+      - "scripts/qa.sh"
 
 jobs:
-  lint-and-parse:
+  qa:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,8 +22,5 @@ jobs:
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
 
-      - name: Run bash syntax checks
-        run: find . -type f -name "*.sh" -print0 | xargs -0 -n1 bash -n
-
-      - name: Run shellcheck
-        run: shellcheck --severity=warning setup.sh bootstrap.sh lib/utils.sh installs/*.sh
+      - name: Run unified QA checks
+        run: bash ./scripts/qa.sh check
