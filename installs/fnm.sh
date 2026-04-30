@@ -8,13 +8,33 @@ source "$DOTFILES_DIR/lib/utils.sh"
 info "== Installing FNM (Fast Node Manager) =="
 
 if ! command -v fnm >/dev/null 2>&1; then
-    run_remote_script "https://fnm.vercel.app/install" bash --skip-shell
+    arch=$(get_arch)
+    if [[ "$arch" == "x86_64" ]]; then
+        asset_name="fnm-linux.zip"
+    else
+        asset_name="fnm-arm64.zip"
+    fi
+
+    info "Downloading fnm from GitHub..."
+    release_json=$(curl --fail --silent --show-error --location "https://api.github.com/repos/Schniz/fnm/releases/latest")
+    url=$(echo "$release_json" | jq -r --arg name "$asset_name" '.assets[] | select(.name == $name) | .browser_download_url')
+
+    if [[ -z "$url" || "$url" == "null" ]]; then
+        error "Could not find download URL for $asset_name"
+    fi
+
+    tmp_zip=$(mktemp)
+    download_to_file "$url" "$tmp_zip"
+    verify_github_asset_checksum "$release_json" "$asset_name" "$tmp_zip"
+
+    mkdir -p "$HOME/.local/bin"
+    unzip -oj "$tmp_zip" "fnm" -d "$HOME/.local/bin"
+    chmod +x "$HOME/.local/bin/fnm"
+    rm -f "$tmp_zip"
 fi
 
-# This PATH export is only for this installer process so `fnm` is immediately
-# available after installation. Persistent shell PATH is managed in terminal.sh.
-FNM_BIN_DIR="$HOME/.local/share/fnm"
-export PATH="$FNM_BIN_DIR:$PATH"
+# Ensure fnm is in PATH for the rest of the script
+export PATH="$HOME/.local/bin:$PATH"
 
 # Generate static completion for Oh My Zsh users.
 if [[ -d "$HOME/.oh-my-zsh" ]]; then
