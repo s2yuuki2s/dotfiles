@@ -248,49 +248,42 @@ install_from_github() {
     fi
     verify_github_asset_checksum "$release_json" "$asset_name" "$downloaded_asset"
 
-    if [[ "$extension" == "tar.gz" ]]; then
-        local extract_dir
-        extract_dir=$(mktemp -d)
-        if ! tar -xzf "$downloaded_asset" -C "$extract_dir" "$bin_name" 2>/dev/null; then
-            tar -xzf "$downloaded_asset" -C "$extract_dir"
-        fi
-
-        local requested_bin
-        local extracted_bin
-        for requested_bin in "${bins[@]}"; do
-            extracted_bin=$(find "$extract_dir" -type f -name "$requested_bin" | head -n 1)
-            if [[ -z "$extracted_bin" ]]; then
-                rm -rf "$extract_dir"
-                rm -f "$downloaded_asset"
-                error "Could not locate $requested_bin in downloaded archive from $repo"
-            fi
-            sudo install "$extracted_bin" /usr/local/bin/
-        done
-        rm -rf "$extract_dir"
-    elif [[ "$extension" == ".zip" ]]; then
-        local extract_dir
-        extract_dir=$(mktemp -d)
-        unzip -q "$downloaded_asset" -d "$extract_dir"
-
-        local requested_bin
-        local extracted_bin
-        for requested_bin in "${bins[@]}"; do
-            extracted_bin=$(find "$extract_dir" -type f -name "$requested_bin" | head -n 1)
-            if [[ -z "$extracted_bin" ]]; then
-                rm -rf "$extract_dir"
-                rm -f "$downloaded_asset"
-                error "Could not locate $requested_bin in downloaded archive from $repo"
-            fi
-            sudo install "$extracted_bin" /usr/local/bin/
-        done
-        rm -rf "$extract_dir"
-    elif [[ "$extension" == ".appimage" ]]; then
+    if [[ "$extension" == ".appimage" ]]; then
         if [[ ${#bins[@]} -ne 1 ]]; then
             rm -f "$downloaded_asset"
             error "AppImage install supports only one binary name."
         fi
         sudo install -m 0755 "$downloaded_asset" "/usr/local/bin/$bin_name"
+        rm -f "$downloaded_asset"
+        return
     fi
 
+    local extract_dir
+    extract_dir=$(mktemp -d)
+    if [[ "$extension" == "tar.gz" ]]; then
+        if ! tar -xzf "$downloaded_asset" -C "$extract_dir" "$bin_name" 2>/dev/null; then
+            tar -xzf "$downloaded_asset" -C "$extract_dir"
+        fi
+    elif [[ "$extension" == ".zip" ]]; then
+        unzip -q "$downloaded_asset" -d "$extract_dir"
+    else
+        rm -rf "$extract_dir"
+        rm -f "$downloaded_asset"
+        error "Unsupported extension for install_from_github: $extension"
+    fi
+
+    local requested_bin
+    local extracted_bin
+    for requested_bin in "${bins[@]}"; do
+        extracted_bin=$(find "$extract_dir" -type f -name "$requested_bin" | head -n 1)
+        if [[ -z "$extracted_bin" ]]; then
+            rm -rf "$extract_dir"
+            rm -f "$downloaded_asset"
+            error "Could not locate $requested_bin in downloaded archive from $repo"
+        fi
+        sudo install "$extracted_bin" /usr/local/bin/
+    done
+
+    rm -rf "$extract_dir"
     rm -f "$downloaded_asset"
 }
